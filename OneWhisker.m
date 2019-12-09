@@ -28,22 +28,24 @@ classdef OneWhisker < handle
             p.addParameter('whiskerID', @isnumeric);
             
             p.addParameter('distToFace', 10, @isnumeric);
-            
             p.addParameter('polyRoiInPix', NaN, @isnumeric);
             p.addParameter('rInMm', NaN, @isnumeric);
             p.addParameter('baselineKappaParam', 0);
-            
             p.addParameter('whiskerLengthInMm', NaN, @isnumeric);
             p.addParameter('whiskerRadiusAtBaseInMicron', NaN, @isnumeric);
-            
             p.addParameter('faceSideInImage', 'bottom', @ischar);
             p.addParameter('protractionDirection', 'leftward', @ischar);
+            p.addParameter('linkingDirection', 'rostral', @ischar);           
+            p.addParameter('whiskerpadROI', NaN, @isnumeric);
+            p.addParameter('whiskerLengthThresh',100,@isnumeric);
             
             p.parse(varargin{:});
             filePath = p.Results.path;
             this.silent = p.Results.silent;
             this.infoStruct = p.Results;
             this.infoStruct = rmfield(this.infoStruct, { 'path', 'silent' });
+            settings=this.infoStruct;
+            save('TrackingSettings.mat','settings')
             
             % Prompt file selection UI when applicable
             if ~exist(filePath, 'file') && ~this.silent
@@ -104,7 +106,12 @@ classdef OneWhisker < handle
                         end
                         
                         % Linking
-                        this.objStruct.measurements = WhiskerLinkerLite(this.dataStruct.measurements);
+                        this.objStruct.measurements = WhiskerLinkerLite(this.dataStruct.measurements,...
+                            'whiskerpadROI',this.infoStruct.whiskerpadROI,...
+                            'linkingDirection',this.infoStruct.linkingDirection,...
+                            'faceSideInImage',this.infoStruct.faceSideInImage,...
+                            'protractionDirection',this.infoStruct.protractionDirection,...
+                            'whiskerLengthThresh',this.infoStruct.whiskerLengthThresh);
 %                         this.objStruct.measurements = WhiskerLinkerLite2(this.dataStruct.measurements, this.dataStruct.facemasks);
                         
                         % Decise whether to save the linking result

@@ -153,7 +153,10 @@ classdef ManyWhiskers < PipelineBaseClass
                     pkg.classifier = this.classifier;
                     pkg.faceSideInImage = this.faceSideInImage;
                     pkg.protractionDirection = this.protractionDirection;
-                    
+                    pkg.linkingDirection = this.linkingDirection;
+                    pkg.whiskerpadROI = this.whiskerpadROI;
+                    pkg.whiskerLengthThresh = this.whiskerLengthThresh;
+                               
                     % Parallel processing
                     pipressSlices = this.ParForLoop(pipressSlices, pkg);
                     
@@ -199,8 +202,10 @@ classdef ManyWhiskers < PipelineBaseClass
                         'whiskerLengthInMm', pipressSlices{i}.whiskerLength{1}, ...
                         'whiskerRadiusAtBaseInMicron', pipressSlices{i}.whisBaseRadius{1}, ...
                         'faceSideInImage', pkg.faceSideInImage, ...
-                        'protractionDirection', pkg.protractionDirection);
-                    
+                        'protractionDirection', pkg.protractionDirection,...
+                        'linkingDirection', 'rostral', @ischar,...
+                        'whiskerpadROI', NaN, @isnumeric,...
+                        'whiskerLengthThresh',100,@isnumeric);
                     % Fill in previous progress of this trial
                     if ~pkg.firstRun
                         owObj.checkTable.status = pipressSlices{i}{1, Pipress.GetStatusRange}';
