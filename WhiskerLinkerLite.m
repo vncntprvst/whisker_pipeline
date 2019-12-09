@@ -17,8 +17,8 @@ classdef WhiskerLinkerLite < handle
     end
     
     methods
-        % Constructor
-        function this = WhiskerLinkerLite(measurements)
+        %% Constructor
+        function this = WhiskerLinkerLite(measurements, varargin)
             
             % Load measurements struct array
             if ischar(measurements)
@@ -26,58 +26,53 @@ classdef WhiskerLinkerLite < handle
             end
             this.measurements = measurements;
             
+            p = inputParser();
+            p.addParameter('whiskerpadROI', NaN, @isnumeric);
+            p.addParameter('linkingDirection', 'rostral', @ischar);
+            p.addParameter('faceSideInImage', 'bottom', @ischar);
+            p.addParameter('protractionDirection', 'leftward', @ischar);
+            p.addParameter('whiskerLengthThresh',100,@isnumeric);
+            p.parse(varargin{:});
+            
+            whiskerpadROI=p.Results.whiskerpadROI;
+            linkingDirection=p.Results.linkingDirection;
+            faceSideInImage=p.Results.faceSideInImage;
+            protractionDirection=p.Results.protractionDirection;
+            whiskerLengthThresh=p.Results.whiskerLengthThresh;
+            
+            %define whisker id order
+            switch protractionDirection; case {'rightward','downward'}; protractSign =1;...
+                case {'leftward','upward'}; protractSign =-1; end
+            switch linkingDirection; case 'rostral'; dirSign =1; otherwise; 'bottom'; dirSign =-1; end
+            if protractSign*dirSign>0; linkingOrder='ascend'; else; linkingOrder='descend'; end
+                                          
             % Sorts the measurements struct by fid (in case of zero-fid ending or any irregular frame order)
             [~, order] = sort([measurements.fid]);
             this.outMeasurements = measurements(order);
-            
-            numFrame = this.outMeasurements(end).fid + 1;
-            numEntry = length(this.outMeasurements);
-            for i = 1 : numEntry
-                this.outMeasurements(i).label = -1;
-            end
+            % discard labels
+            [this.outMeasurements.label] = deal(-1);
             
             % Excludes unqualified trajectories based on length and follicle position
-blacklist = [ this.outMeasurements.length ] < 100 | ...
-            [ this.outMeasurements.score ] < 100 | ...    
-            [ this.outMeasurements.follicle_x ] > 640 | ...
-            [ this.outMeasurements.follicle_x ] < 0 | ...
-            [this.outMeasurements.follicle_y] < 300;
-        
-%             [ this.outMeasurements.length ] > 150 | ...
-
-%             % Simultaneous supraorbital/A-row imaging (side view)
-%             blacklist = [ this.outMeasurements.length ] < 50 | ...
-%             ...
-%             [ this.outMeasurements.score ] < 500 | ...
-%             ...
-%             ~( ([ this.outMeasurements.follicle_y ] > 250 & ...
-%             [ this.outMeasurements.follicle_y ] < 400 & ...
-%             [ this.outMeasurements.follicle_x ] > 100 & ...
-%             [ this.outMeasurements.follicle_x ] < 250) | ...
-%             ...
-%             ([ this.outMeasurements.follicle_y ] > 130 & ...
-%             [ this.outMeasurements.follicle_y ] < 290 & ...
-%             [ this.outMeasurements.follicle_x ] > 280 & ...
-%             [ this.outMeasurements.follicle_x ] < 450) );
-
-% %             % A-row side view imaging
-%             blacklist = [ this.outMeasurements.length ] < 50 | ...
-%             [ this.outMeasurements.score ] < 500 | ...
-%             [ this.outMeasurements.follicle_y ] < 200 | ...
-%             [ this.outMeasurements.follicle_y ] > 400 | ...
-%             [ this.outMeasurements.follicle_x ] > 300 | ...
-%             [ this.outMeasurements.follicle_x ] < 50;
-        
-% %             Mirror Y
-%             blacklist = [ this.outMeasurements.length ] < 110 | ...
-%             [ this.outMeasurements.follicle_y ] > 240 | ...
-%             [ this.outMeasurements.follicle_x ] > 560;
-            
+            if ~isnan(whiskerpadROI)
+                blacklist = [ this.outMeasurements.length ] < whiskerLengthThresh | ...
+                    [ this.outMeasurements.follicle_x ] > whiskerpadROI(1)+whiskerpadROI(3) | ...
+                    [ this.outMeasurements.follicle_x ] < whiskerpadROI(1) | ...
+                    [ this.outMeasurements.follicle_y ] > whiskerpadROI(2)+whiskerpadROI(4) | ...
+                    [ this.outMeasurements.follicle_y ] < whiskerpadROI(2);
+                    %        
+            else %hardcode
+                blacklist = [ this.outMeasurements.length ] < 100 | ...
+                    [ this.outMeasurements.score ] < 100 | ...
+                    [ this.outMeasurements.follicle_x ] > 640 | ...
+                    [ this.outMeasurements.follicle_x ] < 0 | ...
+                    [this.outMeasurements.follicle_y] >350 ; %was <300     
+            end
             % Resets all existing labels (meanwhile applies pre-exclusion)
             this.cleanMeasurements = this.outMeasurements(~blacklist);
             
-            
             % Groups entries by frame
+            numEntry = length(this.outMeasurements);
+            numFrame = this.outMeasurements(end).fid + 1;
             entryIndByFrame = cell(numFrame, 1);
             currentEntry = 1;
             % Iterates through all 2500 frames
@@ -107,7 +102,7 @@ blacklist = [ this.outMeasurements.length ] < 100 | ...
             end
             
             % Determines the number of whiskers
-            numWhiskers = cellfun(@length, entryIndByFrame);
+%             numWhiskers = cellfun(@length, entryIndByFrame);
 %             seedFrameIdx = find(numWhiskers == median(numWhiskers), 1);
             seedFrameIdx = 1;
             
@@ -122,16 +117,22 @@ blacklist = [ this.outMeasurements.length ] < 100 | ...
                     newPosInfo(:,5) = [ this.outMeasurements(entryIndByFrame{i}).follicle_y ]';     % follicle y
                     
                     % Identify the same whiskers
-%                     if i == seedFrameIdx
-%                         % Find the number of whiskers (from frame #0) for preallocating space
-%                         posInfo = zeros([ size(newPosInfo), length(entryIndByFrame) ]);
-%                         posInfo(:,:,i) = this.FindOrder(0, newPosInfo);
-%                     else
-%                         posInfo(:,:,i) = this.FindOrder(i, newPosInfo, posInfo(:,:,i-1));
-%                     end
+                    %                     if i == seedFrameIdx
+                    %                         % Find the number of whiskers (from frame #0) for preallocating space
+                    %                         posInfo = zeros([ size(newPosInfo), length(entryIndByFrame) ]);
+                    %                         posInfo(:,:,i) = this.FindOrder(0, newPosInfo);
+                    %                     else
+                    %                         posInfo(:,:,i) = this.FindOrder(i, newPosInfo, posInfo(:,:,i-1));
+                    %                     end
                     
                     posInfo = zeros(length(entryIndByFrame{i}), 5);
-                    [ ~, order ] = sort(newPosInfo(:,4), 'ascend');
+                    % Sort according to follicle location
+                    switch faceSideInImage
+                        case {'top','bottom'}
+                            [ ~, order ] = sort(newPosInfo(:,4),linkingOrder);
+                        case {'left','right'}
+                            [ ~, order ] = sort(newPosInfo(:,5),linkingOrder);
+                    end
                     % Label n whiskers from 0 to n-1
                     posInfo(:,1) = 0 : size(newPosInfo,1) - 1;
                     % Set the mask of the first frame
@@ -147,29 +148,6 @@ blacklist = [ this.outMeasurements.length ] < 100 | ...
                     end
                 end
             end
-            
-%             % Backward linking
-%             for i = seedFrameIdx-1 : -1 : 1
-%                 if ~isempty(entryIndByFrame{i})
-%                     % Initialize info matrix of the current frame
-%                     newPosInfo = zeros(length(entryIndByFrame{i}), 5);
-%                     newPosInfo(:,2) = 1;                                                            % mask
-%                     newPosInfo(:,3) = entryIndByFrame{i}';                                          % entry indices
-%                     newPosInfo(:,4) = [ this.outMeasurements(entryIndByFrame{i}).follicle_x ]';     % follicle x
-%                     newPosInfo(:,5) = [ this.outMeasurements(entryIndByFrame{i}).follicle_y ]';     % follicle y
-%                     
-%                     % Identify the same whiskers
-%                     posInfo(:,:,i) = this.FindOrder(i, newPosInfo, posInfo(:,:,i+1));
-%                     
-%                     % Apply result into outMeasurements
-%                     for j = 1 : size(posInfo,1)
-%                         if posInfo(j,2,i) % When it is not masked by zeros
-%                             this.outMeasurements(posInfo(j,3,i)).label = posInfo(j,1,i);
-%                         end
-%                     end
-%                 end
-%             end
-            
             
             % Generate Reports
             numLabel = max([ this.outMeasurements.label ]) + 1;
@@ -194,11 +172,11 @@ blacklist = [ this.outMeasurements.length ] < 100 | ...
             this.follicleJitter = this.follicleJitter;
         end
         
-        
+        %%
         function [ lastLinkedInfo, missingList, sqDist ] = FindOrder(this, fid, newRawInfo, lastLinkedInfo)
             if fid == 0
-                % Find the order of whiskers from right(large follicle_x) to left(small follicle_x) ('descend')
-                [ ~, order ] = sort(newRawInfo(:,4), 'ascend');
+                % Find the order of whiskers from right(large follicle_x) to left(small follicle_x) (linkingOrder)
+                [ ~, order ] = sort(newRawInfo(:,4), linkingOrder);
                 % Label n whiskers from 0 to n-1
                 newRawInfo(:, 1) = 0 : size(newRawInfo, 1) - 1;
                 % Set the mask of the first frame
@@ -207,7 +185,7 @@ blacklist = [ this.outMeasurements.length ] < 100 | ...
                 newRawInfo(:, 3:end) = newRawInfo(order, 3:end);
                 % Output result
                 lastLinkedInfo = newRawInfo;
-            else                
+            else
                 % Initialize newLinkedInfo array as the lastLinkedInfo array
                 newLinkedInfo = lastLinkedInfo;
                 % Initialize mask with zeros, assuming none of them are valid
@@ -235,13 +213,13 @@ blacklist = [ this.outMeasurements.length ] < 100 | ...
                 end
                 
                 % Correct any potential violation of whisker label sequence
-                [ ~, rightOrder ] = sort(newLinkedInfo(:,4), 'ascend');
+                [ ~, rightOrder ] = sort(newLinkedInfo(:,4), linkingOrder);
                 newLinkedInfo(:,2:end) = newLinkedInfo(rightOrder, 2:end);
                 lastLinkedInfo = newLinkedInfo;
             end
         end
         
-        
+        %%
         function member2del = FindOverlap(this, coordinates)
             member2del = [ ];
             
@@ -260,21 +238,17 @@ blacklist = [ this.outMeasurements.length ] < 100 | ...
             end
         end
         
-        
+        %%
         function Save(this, filePath)
             Whisker.SaveMeasurements(filePath, this.outMeasurements);
         end
         
-        
+        %%
         function SaveRaw(this, filePath)
             Whisker.SaveMeasurements(filePath, this.measurements);
         end
-        
-        
-        
-        
-        
-        % The following methods are for displaying intermediate or final results
+
+        %% The following methods are for displaying intermediate or final results
         function PlotRawFollicles(this)
             figure;
             scatter([this.measurements.follicle_x], [this.measurements.length]);
@@ -285,7 +259,7 @@ blacklist = [ this.outMeasurements.length ] < 100 | ...
             scatter3([this.measurements.follicle_x], [this.measurements.follicle_y], [this.measurements.length]);
         end
         
-        
+        %%
         function PlotCleanFollicles(this)
             figure
             scatter([this.cleanMeasurements.follicle_x], [this.cleanMeasurements.length]);
@@ -293,7 +267,7 @@ blacklist = [ this.outMeasurements.length ] < 100 | ...
             scatter3([this.cleanMeasurements.follicle_x], [this.cleanMeasurements.follicle_y], [this.cleanMeasurements.length]);
         end
         
-        
+        %%
         function PlotReport(this, wid)
             if nargin < 2
                 wid = 1:size(this.follicleJitter,2);
