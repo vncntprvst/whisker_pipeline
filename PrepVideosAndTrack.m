@@ -4,12 +4,21 @@ dirListing=dir(sessionDir);
 %% Create files
 %list files to split (specify avi or mp4)
 videoFiles = cellfun(@(fileFormat) dir([sessionDir filesep fileFormat]),...
-    {'*.avi'},'UniformOutput', false);
+    {'*.mp4','*.avi'},'UniformOutput', false);
 videoFiles=vertcat(videoFiles{~cellfun('isempty',videoFiles)});
 % list timestamps files
 timestampFilesIndex=cellfun(@(fileName) contains(fileName,'HSCamFrameTime.csv')==1,...
     {dirListing.name},'UniformOutput', true);
 timestampFiles={dirListing(timestampFilesIndex).name};
+
+% get whiskerpad coordinates
+firstVideo=VideoReader(videoFiles(1).name);
+vidFrame = readFrame(firstVideo);
+figure; image(vidFrame);
+whiskerPadCoordinates = drawrectangle;
+whiskerPadCoordinates = whiskerPadCoordinates.Position;
+close(gcf); clearvars firstVideo
+
 for fileNum=1:numel(videoFiles)
     clearvars videoData numFrames compIndex videoTimestamps
     videoFileName=videoFiles(fileNum).name;
@@ -17,6 +26,7 @@ for fileNum=1:numel(videoFiles)
     numFrames=videoData.get(py.cv2.CAP_PROP_FRAME_COUNT);
     % find corresponding csv file, comparing with video file name (they
     % might not be exactly the same, to due timestamp in filename)
+    if ~isempty(timestampFiles)
     for strCompLength=numel(videoFileName):-1:1
         compIndex=cellfun(@(fileName) strncmpi([videoFileName(1:end-4) 'FrameTime.csv'],fileName,strCompLength),...
             timestampFiles);
@@ -33,6 +43,9 @@ for fileNum=1:numel(videoFiles)
 %         videoTimestamps=videoTimestamps.RelativeCameraFrameTime; %RelativeSoftwareFrameTime; %RelativeCameraFrameTime
 %         frameTimes=videoTimestamps/10^6;
 %         figure; plot(diff([triggerTimes';frameTimes']))
+    else
+        videoTimestamps=table(linspace(1,numFrames*2,numFrames)','VariableNames',{'Var1'});
+    end
     % check that video has as many frames as timestamps
     if size(videoTimestamps,1)~=numFrames
         disp(['discrepancy in frame number for file ' videoFileName])
@@ -111,7 +124,7 @@ for fileNum=1:numel(videoFiles)
     end
 end
 
-% need to convert avi files to mp4
+% [optional] If need to convert avi files to mp4
 cd([sessionDir filesep 'workspace'])
 aviFiles = cellfun(@(fileFormat) dir([cd filesep fileFormat]),...
     {'*.avi'},'UniformOutput', false);
@@ -120,9 +133,10 @@ aviFiles=vertcat(aviFiles{~cellfun('isempty',aviFiles)});
 if ~isempty(aviFiles)
     for fileNum=1:numel(aviFiles)
         sysCall=['ffmpeg -i ' aviFiles(fileNum).name ' -vcodec copy ' aviFiles(fileNum).name(1:end-3) 'mp4'];
-        disp(sysCall);
-        system(sysCall);
+        disp(sysCall); system(sysCall);
+        aviFiles(fileNum).name
     end
+    delete *.avi
 end
 % cd ..
 
@@ -135,23 +149,15 @@ ignoreExt = '.measurements';
 include_files = arrayfun(@(x) x.name(1:(end-length(ext))), dir([sessionDir filesep 'workspace' filesep '*' ext]),'UniformOutput',false);
 ignore_files = arrayfun(@(x) x.name(1:(end-length(ignoreExt))), dir([sessionDir filesep 'workspace' filesep '*' ignoreExt]),'UniformOutput',false); % Returns list of files that are already tracked
 c = setdiff(include_files,ignore_files);
-size(include_files)
-size(ignore_files)
-size(c)
+disp(['Number of files detected :' numel(include_files)])
+disp(['Number of files to ignore :' numel(ignore_files)])
+disp(['Number of files included :' numel(c)])
 include_files = c;
-
-% get whiskerpad coordinates
-firstVideo=VideoReader([include_files{1} '.mp4']);
-vidFrame = readFrame(firstVideo);
-figure; image(vidFrame);
-whiskerPadCoordinates = drawrectangle;
-whiskerPadCoordinates = whiskerPadCoordinates.Position;
-close(gcf); clearvars firstVideo
 
 % initialize parameters
 face_x_y = round([whiskerPadCoordinates(1)+whiskerPadCoordinates(3)/2,...
     whiskerPadCoordinates(2)+whiskerPadCoordinates(4)/2]); %[140 264]; 
-num_whiskers = 10; %-1 %10; 
+num_whiskers = 3; %-1 %10; 
 
 % all files
 tic
@@ -161,44 +167,48 @@ Whisker.makeAllDirectory_Tracking([sessionDir filesep 'workspace'],'ext',ext,...
 toc
 
 % sanity check: single file
-fileNum=1;
-fileName=include_files{fileNum};
-syscall = ['C:\Progra~1\WhiskerTracking\bin\trace ' fileName ext ' ' fileName '.whiskers']; disp(syscall); system(syscall);
-syscall = ['C:\Progra~1\WhiskerTracking\bin\measure --face ' num2str(face_x_y)...
-    ' x  ' fileName '.whiskers ' fileName '.measurements']; disp(syscall); system(syscall);
-syscall = ['C:\Progra~1\WhiskerTracking\bin\classify ' fileName '.measurements ' ...
-    fileName '.measurements ' num2str(face_x_y) ' x --px2mm 0.064 -n ' ...
-    num2str(num_whiskers) ' --limit2.0:50.0']; %--limit2.0:50.0'
-disp(syscall); system(syscall);
+% fileNum=1;
+% fileName=include_files{fileNum};
+% syscall = ['C:\Progra~1\WhiskerTracking\bin\trace ' fileName ext ' ' fileName '.whiskers']; disp(syscall); system(syscall);
+% syscall = ['C:\Progra~1\WhiskerTracking\bin\measure --face ' num2str(face_x_y)...
+%     ' x  ' fileName '.whiskers ' fileName '.measurements']; disp(syscall); system(syscall);
+% syscall = ['C:\Progra~1\WhiskerTracking\bin\classify ' fileName '.measurements ' ...
+%     fileName '.measurements ' num2str(face_x_y) ' x --px2mm 0.064 -n ' ...
+%     num2str(num_whiskers) ' --limit2.0:50.0']; %--limit2.0:50.0'
+% disp(syscall); system(syscall);
 
-%% Link measurements
-% check everything is fine on one chunk
-filePath = fullfile(sessionDir, 'workspace', [fileName '.measurements']); %'D:\Vincent\vIRt43\vIRt43_1204\workspace\vIRt43_1204_4400_20191204-171925_HSCam_Trial0.measurements'; 
-%Browse.File();
-%whiskerPadCoordinates=[300 30 150 80]; % 305.0161    8.1968   95.8525   71.3703
-% Test performence with one trial 
+
+%%%%%%%%%%%%%%%%%%%%%%%
+%% Link measurements %%
+%%%%%%%%%%%%%%%%%%%%%%%
+
+% filePath = fullfile(sessionDir, 'workspace', [fileName '.measurements']); %'D:\Vincent\vIRt43\vIRt43_1204\workspace\vIRt43_1204_4400_20191204-171925_HSCam_Trial0.measurements'; 
+
+%% Test performence with one trial 
+
 % Initialize object
-ow = OneWhisker('path', filePath, 'silent', false, ...
-    'whiskerID', 0, ...
-    'distToFace', 30, ... % for face mask
-    'polyRoiInPix', [31 163], ... % point of interest on whisker close to pole 
-    'rInMm', 4.5, ... %point where curvature is measured
-    'whiskerRadiusAtBaseInMicron', 44, ... %post-hoc measurement   
-    'whiskerLengthInMm', 25.183, ...    %post-hoc measurement   
-    'faceSideInImage', 'top', ... 
-    'protractionDirection', 'leftward',...
-    'linkingDirection','rostral',...
-    'whiskerpadROI',whiskerPadCoordinates,...
-    'whiskerLengthThresh',50,...
-    'silent',true); % caudal or rostral
+% ow = OneWhisker('path', filePath, 'silent', false, ...
+%     'whiskerID', 0, ...
+%     'distToFace', 30, ... % for face mask
+%     'polyRoiInPix', [31 163], ... % point of interest on whisker close to pole 
+%     'rInMm', 4.5, ... %point where curvature is measured
+%     'whiskerRadiusAtBaseInMicron', 44, ... %post-hoc measurement   
+%     'whiskerLengthInMm', 25.183, ...    %post-hoc measurement   
+%     'faceSideInImage', 'top', ... 
+%     'protractionDirection', 'leftward',...
+%     'linkingDirection','rostral',...
+%     'whiskerpadROI',whiskerPadCoordinates,...
+%     'whiskerLengthThresh',50,...
+%     'silent',true); % caudal or rostral
 
 % Then link
-ow.LinkWhiskers('Force', true);            % see Guide for the detail about 'Force'
+% ow.LinkWhiskers('Force', true);            % see Guide for the detail about 'Force'
 
 % Additional processing 
 % ow.MakeMasks('Force', true);  
 % ow.DetectBar('Force', true);  
 % ow.DoPhysics('Force', true);  
+
 %% Loop through session
 for fileNum=1:numel(include_files)
     fileName=include_files{fileNum};
@@ -210,8 +220,8 @@ for fileNum=1:numel(include_files)
         'rInMm', 4.5, ... %point where curvature is measured
         'whiskerRadiusAtBaseInMicron', 44, ... %post-hoc measurement
         'whiskerLengthInMm', 25.183, ...    %post-hoc measurement
-        'faceSideInImage', 'left', ...
-        'protractionDirection', 'downward',...
+        'faceSideInImage', 'top', ...
+        'protractionDirection', 'leftward',...
         'linkingDirection','rostral',...
         'whiskerpadROI',whiskerPadCoordinates,...
         'whiskerLengthThresh',50,...
