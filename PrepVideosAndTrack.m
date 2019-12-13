@@ -19,6 +19,7 @@ whiskerPadCoordinates = drawrectangle;
 whiskerPadCoordinates = whiskerPadCoordinates.Position;
 close(gcf); clearvars firstVideo
 
+% Cut videos in 5 seconds chunks 
 for fileNum=1:numel(videoFiles)
     clearvars videoData numFrames compIndex videoTimestamps
     videoFileName=videoFiles(fileNum).name;
