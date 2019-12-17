@@ -79,9 +79,9 @@ for fileNum=1:numel(videoFiles)
         %     apiPreference=int32(videoData.get(py.cv2.CAP_FFMPEG));
         % %     apiPreference 0 (cv2.CAP_ANY)  1900 (cv2.CAP_FFMPEG)
         % %     videoData.release()
-        % %     foo='D:\Vincent\vIRt42\vIRt42_1016\workspace\vIRt42_1016_4800_10Hz_10ms_10mW_20191016-121733_HSCam_Trial16.avi'
+        % %     foo='D:\Vincent\vIRt42\vIRt42_1016\WhiskerTracking\vIRt42_1016_4800_10Hz_10ms_10mW_20191016-121733_HSCam_Trial16.avi'
         % %     videoCap = py.cv2.VideoCapture(foo)
-        %     videoOutDirectory=['D:\Vincent\vIRt42\vIRt42_1016\workspace\'];
+        %     videoOutDirectory=['D:\Vincent\vIRt42\vIRt42_1016\WhiskerTracking\'];
         %     for chunkNum=1:size(chunkIndex,1)
         %         videoOutFileName=[videoFileName(1:end-4) '_Trial' num2str(chunkNum) '.mp4'];
         %         videoOut=py.cv2.VideoWriter;
@@ -126,7 +126,7 @@ for fileNum=1:numel(videoFiles)
 end
 
 % [optional] If need to convert avi files to mp4
-cd([sessionDir filesep 'workspace'])
+cd([sessionDir filesep 'WhiskerTracking'])
 aviFiles = cellfun(@(fileFormat) dir([cd filesep fileFormat]),...
     {'*.avi'},'UniformOutput', false);
 aviFiles=vertcat(aviFiles{~cellfun('isempty',aviFiles)});
@@ -144,11 +144,11 @@ end
 %% Perform whisker detection
 %Command line references: http://whiskertracking.janelia.org/wiki/display/MyersLab/Whisker+Tracking+Command+Line+Reference
 % list files
-% cd([sessionDir filesep 'workspace'])
+% cd([sessionDir filesep 'WhiskerTracking'])
 ext = '.mp4';
 ignoreExt = '.measurements';
-include_files = arrayfun(@(x) x.name(1:(end-length(ext))), dir([sessionDir filesep 'workspace' filesep '*' ext]),'UniformOutput',false);
-ignore_files = arrayfun(@(x) x.name(1:(end-length(ignoreExt))), dir([sessionDir filesep 'workspace' filesep '*' ignoreExt]),'UniformOutput',false); % Returns list of files that are already tracked
+include_files = arrayfun(@(x) x.name(1:(end-length(ext))), dir([sessionDir filesep 'WhiskerTracking' filesep '*' ext]),'UniformOutput',false);
+ignore_files = arrayfun(@(x) x.name(1:(end-length(ignoreExt))), dir([sessionDir filesep 'WhiskerTracking' filesep '*' ignoreExt]),'UniformOutput',false); % Returns list of files that are already tracked
 c = setdiff(include_files,ignore_files);
 disp(['Number of files detected :' numel(include_files)])
 disp(['Number of files to ignore :' numel(ignore_files)])
@@ -162,7 +162,7 @@ num_whiskers = 3; %-1 %10;
 
 % all files
 tic
-Whisker.makeAllDirectory_Tracking([sessionDir filesep 'workspace'],'ext',ext,...
+Whisker.makeAllDirectory_Tracking([sessionDir filesep 'WhiskerTracking'],'ext',ext,...
     'include_files',include_files,...
     'face_x_y',face_x_y,'num_whiskers',num_whiskers);
 toc
@@ -183,7 +183,7 @@ toc
 %% Link measurements %%
 %%%%%%%%%%%%%%%%%%%%%%%
 
-% filePath = fullfile(sessionDir, 'workspace', [fileName '.measurements']); %'D:\Vincent\vIRt43\vIRt43_1204\workspace\vIRt43_1204_4400_20191204-171925_HSCam_Trial0.measurements'; 
+% filePath = fullfile(sessionDir, 'WhiskerTracking', [fileName '.measurements']); %'D:\Vincent\vIRt43\vIRt43_1204\WhiskerTracking\vIRt43_1204_4400_20191204-171925_HSCam_Trial0.measurements'; 
 
 %% Test performence with one trial 
 
@@ -213,7 +213,7 @@ toc
 %% Loop through session
 for fileNum=1:numel(include_files)
     fileName=include_files{fileNum};
-    filePath = fullfile(sessionDir, 'workspace', [fileName '.measurements']); %'D:\Vincent\vIRt43\vIRt43_1204\workspace\vIRt43_1204_4400_20191204-171925_HSCam_Trial0.measurements';
+    filePath = fullfile(sessionDir, 'WhiskerTracking', [fileName '.measurements']); %'D:\Vincent\vIRt43\vIRt43_1204\WhiskerTracking\vIRt43_1204_4400_20191204-171925_HSCam_Trial0.measurements';
     ow = OneWhisker('path', filePath, 'silent', false, ...
         'whiskerID', 0, ...
         'distToFace', 30, ... % for face mask
@@ -240,7 +240,7 @@ end
 if ~exist([sessionDir filesep 'settings'],'dir')
     mkdir([sessionDir filesep 'settings']);
 end
-mw = ManyWhiskers([sessionDir filesep 'workspace'], ...
+mw = ManyWhiskers([sessionDir filesep 'WhiskerTracking'], ...
     'sessionDictPath', [sessionDir filesep 'settings' filesep 'session_dictionary.xlsx'], ... % where session info are saved
     'sessionDictEntryIdx', NaN, ...
     'measurements', true,...
