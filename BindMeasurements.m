@@ -55,10 +55,15 @@ for fileNum=1:numel(videoFiles)
     end
 end
 
+%% Save data
 save('allWhiskerData','allWhiskerData')
+fileNames=fieldnames(allWhiskerData);
+for fileNum=1:numel(fileNames)
+    eval([fileNames{fileNum} '_WhiskerData=allWhiskerData.(fileNames{fileNum})']);
+    save([fileNames{fileNum} '_WhiskerData.mat'],[fileNames{fileNum} '_WhiskerData']);
+end
 
-
-%% Plot output
+%% Plot
 dt=0.002;
 time=double([allWhiskerData.(recordingName).fid]).*dt;
 angle=[allWhiskerData.(recordingName).angle];
