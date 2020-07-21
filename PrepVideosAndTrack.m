@@ -6,9 +6,12 @@ dirListing=dir(sessionDir);
 videoFiles = cellfun(@(fileFormat) dir([sessionDir filesep fileFormat]),...
     {'*.mp4','*.avi'},'UniformOutput', false);
 videoFiles=vertcat(videoFiles{~cellfun('isempty',videoFiles)});
+videoFiles=videoFiles(~cellfun(@(flnm) contains(flnm,{'webcam';'Webcam'}),...
+    {videoFiles.name})); % by folder name
+
 % list timestamps files
-timestampFilesIndex=cellfun(@(fileName) contains(fileName,'HSCamFrameTime.csv')==1,...
-    {dirListing.name},'UniformOutput', true);
+timestampFilesIndex=cellfun(@(fileName) contains(fileName,{'HSCamFrameTime.csv'; ...
+    'HSCam.csv';'HSCam_Parsed.csv';'tsbackup'}),{dirListing.name},'UniformOutput', true);
 timestampFiles={dirListing(timestampFilesIndex).name};
 
 % get whiskerpad coordinates
@@ -19,7 +22,7 @@ whiskerPadCoordinates = drawrectangle;
 whiskerPadCoordinates = whiskerPadCoordinates.Position;
 close(gcf); clearvars firstVideo
 
-% Cut videos in 5 seconds chunks 
+% Write Frame Split Index File
 for fileNum=1:numel(videoFiles)
     clearvars videoData numFrames compIndex videoTimestamps
     videoFileName=videoFiles(fileNum).name;
@@ -28,47 +31,157 @@ for fileNum=1:numel(videoFiles)
     % find corresponding csv file, comparing with video file name (they
     % might not be exactly the same, to due timestamp in filename)
     if ~isempty(timestampFiles)
-    for strCompLength=numel(videoFileName):-1:1
-        compIndex=cellfun(@(fileName) strncmpi([videoFileName(1:end-4) 'FrameTime.csv'],fileName,strCompLength),...
-            timestampFiles);
-        if sum(compIndex)==1 %found it
-            break
+        for strCompLength=numel(videoFileName):-1:1
+            compIndex=cellfun(@(fileName) strncmpi([videoFileName(1:end-4) 'FrameTime.csv'],fileName,strCompLength),...
+                timestampFiles);
+            if sum(compIndex)==1 %found it
+                break
+            end
         end
-    end
-    videoTimestampFile=timestampFiles{compIndex};
-    % read timestamps
-    videoTimestamps=readtable(videoTimestampFile);        
-    % If needed, double check TTLs too: 
-%         [~,~,~,TTLs] =LoadEphysData('vIRt42_1016_4800_10Hz_10ms_10mW.ns6',cd);
-%         triggerTimes=TTLs{1, 2}.TTLtimes/TTLs{1, 2}.samplingRate*1000;triggerTimes=triggerTimes'-triggerTimes(1);
-%         videoTimestamps=videoTimestamps.RelativeCameraFrameTime; %RelativeSoftwareFrameTime; %RelativeCameraFrameTime
-%         frameTimes=videoTimestamps/10^6;
-%         figure; plot(diff([triggerTimes';frameTimes']))
+        videoTimestampFile=timestampFiles{compIndex};
+        % read timestamps
+        [~,~,tsFileExt] = fileparts(videoTimestampFile);
+        switch tsFileExt
+            case '.csv'
+                videoTimestamps=readtable(videoTimestampFile);
+                if any(ismember({'RelativeCameraFrameTime'}, videoTimestamps.Properties.VariableNames))
+                    frameTimes=videoTimestamps.RelativeCameraFrameTime/10^6;
+                elseif numel(fieldnames(videoTimestamps))==7
+                    %% See ParseCSV_timestamps.bonsai for conversion.
+%                     continue
+                    frameTimes=(1:2:numFrames*2)-1;frameTimes=frameTimes';
+                elseif all(ismember({'Hour','Minute','Second'}, videoTimestamps.Properties.VariableNames))
+                    frameTimes=videoTimestamps.Hour*3600+videoTimestamps.Minute*60+videoTimestamps.Second;
+                    frameTimes=frameTimes-frameTimes(1);
+                    frameTimes=frameTimes*1000;
+                end
+            case '.bin' %Paul's plugin 
+                TSfileID=fopen(videoTimestampFile,'r');
+                videoTimestamps=fread(TSfileID,[3 Inf],'int64'); %see line 121 https://github.com/paulmthompson/BaslerCameraPlugin/blob/master/BaslerCamera/BaslerCameraEditor.cpp
+                fclose(TSfileID);
+                frameTimes=videoTimestamps(1,find(videoTimestamps(3,:)>0,1):end)-...
+                    videoTimestamps(1,find(videoTimestamps(3,:)>0,1));
+%                 frameTimes=videoTimestamps(1,:)-videoTimestamps(1,1);
+                frameTimes=linspace(0,frameTimes(end),numFrames);
+                frameTimes=frameTimes'/30; %recorded at 30kHz
+        end
+        frameDur=unique(round(diff(frameTimes)));
+        if numel(frameDur)>1
+            % need to double check TTLs too:
+            [recFile,recDir] = uigetfile({'*.dat;*.bin;*.continuous;*.kwik;*.kwd;*.kwx;*.nex;*.ns*','All Data Formats';...
+                '*.*','All Files' },['Select TTL file for video ' videoFileName],cd);
+            [~,~,~,TTLs] =LoadEphysData(recFile,recDir);%vIRt44_1210_5101.ns6 recDir='D:\Vincent\vIRt44\vIRt44_1210';
+            %         if BR rec:
+            triggerTimes=TTLs{1, 2}.start(1,:)/TTLs{1, 2}.samplingRate*1000; %TTLs{1, 2}.TTLtimes
+            %         if OE rec:
+            %         triggerTimes = TTLs{1, 2}(1,TTLs{1, 2}(2,:)>0)/30;
+            if numel(triggerTimes)>12 %if not old setup 
+            triggerTimes=triggerTimes'-triggerTimes(1);
+            
+%             clockDrift=(mode(frameTimes./floor(frameTimes))-1)/frameDur(1);
+%             round(frameTimes-(clockDrift*floor(frameTimes)));     
+            
+            %% find gaps
+            contPeriods=bwconncomp([true;round(diff(triggerTimes))==mode(diff(triggerTimes))]);
+            gapIndex=cellfun(@(contPIdx) [contPIdx(1);contPIdx(end)], contPeriods.PixelIdxList, 'UniformOutput', false);
+            gapIndex=reshape([gapIndex{:}],[1 numel(gapIndex)*2]); trigGapIndex=reshape(gapIndex,[2,numel(gapIndex)/2]);
+            
+            contPeriods=bwconncomp([true,round(diff(frameTimes'))==mode(round(diff(frameTimes)))]);
+            if contPeriods.NumObjects~=size(trigGapIndex,2)
+                disp(['serious frame number mismatch for' videoFiles(fileNum).name])
+                continue 
+            end
+            gapIndex=cellfun(@(contPIdx) [contPIdx(1);contPIdx(end)], contPeriods.PixelIdxList, 'UniformOutput', false);
+            gapIndex=reshape([gapIndex{:}],[1 numel(gapIndex)*2]); frameTimeGapIndex=reshape(gapIndex,[2,numel(gapIndex)/2]);
+                        
+            %% Probably need to (re)export vSync then . But coordinate with Batch export (ask to overwrite, etc)
+            % For now, save index fix 
+            vSyncFix=struct('fixIndex',[],'fixType',[]);
+            for contPeriodNum=1:contPeriods.NumObjects
+                gapDiff=diff(trigGapIndex(:,contPeriodNum)) - diff(frameTimeGapIndex(:,contPeriodNum));
+                if gapDiff>0 % will need to disregard those indices 
+%                     videoTimestamps=[videoTimestamps(frameTimeGapIndex(1,contPeriodNum):videoTimestamps(frameTimeGapIndex(2,contPeriodNum));
+                    vSyncFix(contPeriodNum).fixIndex=trigGapIndex(2,contPeriodNum)-gapDiff+1:trigGapIndex(2,contPeriodNum);
+                    vSyncFix(contPeriodNum).fixType='disregard';
+                elseif gapDiff<0 % will need to add those indices 
+                    vSyncFix(contPeriodNum).fixIndex=trigGapIndex(2,contPeriodNum)+1:trigGapIndex(2,contPeriodNum)+gapDiff;
+                    vSyncFix(contPeriodNum).fixType='add';
+                else
+                    vSyncFix(contPeriodNum).fixIndex=[];
+                    vSyncFix(contPeriodNum).fixIndex='none';
+                end
+            end
+            save([videoFileName(1:end-4) '_vSyncFix.mat'],'vSyncFix');
+
+%             % diagnostics plots
+%             figure; hold on
+%             plot(diff([triggerTimes';frameTimes']));
+%             %plot(diff([triggerTimes(end-numel(frameTimes)+1:end)';frameTimes']))
+%             %plot(diff([triggerTimes(1:numel(frameTimes))';frameTimes']))
+%             plot(diff(triggerTimes))
+%             plot(diff(frameTimes))
+%             
+%             figure; hold on
+%             plot(triggerTimes,triggerTimes,'dk')
+%             plot(frameTimes,frameTimes,'or'); 
+%             
+%             for contPeriodNum=1:contPeriods.NumObjects
+%                 figure; hold on
+%                 plot(triggerTimes(trigGapIndex(1,contPeriodNum):trigGapIndex(2,contPeriodNum))-...
+%                     triggerTimes(trigGapIndex(1,contPeriodNum)),...
+%                     triggerTimes(trigGapIndex(1,contPeriodNum):trigGapIndex(2,contPeriodNum))-...
+%                     triggerTimes(trigGapIndex(1,contPeriodNum)),'dk')
+%                 plot(frameTimes(frameTimeGapIndex(1,contPeriodNum):frameTimeGapIndex(2,contPeriodNum))-...
+%                     frameTimes(frameTimeGapIndex(1,contPeriodNum)),...
+%                     frameTimes(frameTimeGapIndex(1,contPeriodNum):frameTimeGapIndex(2,contPeriodNum))-...
+%                     frameTimes(frameTimeGapIndex(1,contPeriodNum)),'or'); 
+%             end       
+            
+            else
+                frameTimes=frameTimes(1:numFrames);
+            end
+        end
     else
-        videoTimestamps=table(linspace(1,numFrames*2,numFrames)','VariableNames',{'Var1'});
+        frameTimes=table(linspace(1,numFrames*2,numFrames)','VariableNames',{'Var1'});
     end
     % check that video has as many frames as timestamps
-    if size(videoTimestamps,1)~=numFrames
+    if size(frameTimes,1)~=numFrames
         disp(['discrepancy in frame number for file ' videoFileName])
         continue
     else %do the splitting
         chunkDuration=5; % duration of chunks in seconds
         %Based on Timestamp (unfortunately, Basler cam clocks are not reliable)
-%         videoTimestamps=videoTimestamps.RelativeCameraFrameTime;
-%         chunkIndex=find([0;diff(mod(videoTimestamps/10^9,chunkDuration))]<0); % find the 5 second video segments
-%         %make 2 columns: start and stop indices
-%         chunkIndex=int32([1,chunkIndex(1,1);chunkIndex(1:end-1),chunkIndex(2:end)]);
+        %         videoTimestamps=videoTimestamps.RelativeCameraFrameTime;
+        %         chunkIndex=find([0;diff(mod(videoTimestamps/10^9,chunkDuration))]<0); % find the 5 second video segments
+        %         %make 2 columns: start and stop indices
+        %         chunkIndex=int32([1,chunkIndex(1,1);chunkIndex(1:end-1),chunkIndex(2:end)]);
         % Just based on time
-        if ismember('RelativeCameraFrameTime', videoTimestamps.Properties.VariableNames)
-            frameTimeInterval=unique(round(diff(videoTimestamps.RelativeCameraFrameTime/10^6))); %in ms
+        if isfield(videoTimestamps,'Properties')
+            if ismember('RelativeCameraFrameTime', videoTimestamps.Properties.VariableNames)
+                frameTimeInterval=unique(round(diff(videoTimestamps.RelativeCameraFrameTime/10^6))); %in ms
+            else
+                frameTimeInterval=round(mean(diff(videoTimestamps.Var1)));
+            end
         else
-            frameTimeInterval=round(mean(diff(videoTimestamps.Var1)));
+            frameTimeInterval=frameDur;
+        end
+        if numel(frameTimeInterval)>1
+            if exist('vSyncFix','var'); frameTimeInterval=frameTimeInterval(1); %fine, proceed
+            else; disp('Fix frame interval first'); end
         end
         chunkIndex=0:chunkDuration*1000/frameTimeInterval:numFrames;
         chunkIndex=int32([chunkIndex(1:end-1)',chunkIndex(2:end)'-1]);
         % write the file
         frameSplitIndexFileName=[videoFileName(1:end-4) '_VideoFrameSplitIndex.csv'];
         dlmwrite([sessionDir filesep frameSplitIndexFileName],chunkIndex,'delimiter', ',','precision','%i');
+    end
+end
+
+%% Cut videos in 5 seconds chunks
+for fileNum=1:numel(videoFiles)
+    videoFileName=videoFiles(fileNum).name;
+    frameSplitIndexFileName = [videoFileName(1:end-4) '_VideoFrameSplitIndex.csv'];
+    
         %% use openCV through python (works but too slow, because Matlab can't serialize Python objects in parfor)
         
         %     fps=int32(videoData.get(py.cv2.CAP_PROP_FPS));
@@ -122,7 +235,6 @@ for fileNum=1:numel(videoFiles)
         %             ' -hide_banner -loglevel panic'];
         %         disp(cmd);
         %         ffmpegexec(cmd);
-    end
 end
 
 % [optional] If need to convert avi files to mp4
@@ -147,8 +259,10 @@ end
 % cd([sessionDir filesep 'WhiskerTracking'])
 ext = '.mp4';
 ignoreExt = '.measurements';
-include_files = arrayfun(@(x) x.name(1:(end-length(ext))), dir([sessionDir filesep 'WhiskerTracking' filesep '*' ext]),'UniformOutput',false);
-ignore_files = arrayfun(@(x) x.name(1:(end-length(ignoreExt))), dir([sessionDir filesep 'WhiskerTracking' filesep '*' ignoreExt]),'UniformOutput',false); % Returns list of files that are already tracked
+include_files = arrayfun(@(x) x.name(1:(end-length(ext))),...
+    dir([sessionDir filesep 'WhiskerTracking' filesep '*' ext]),'UniformOutput',false);
+ignore_files = arrayfun(@(x) x.name(1:(end-length(ignoreExt))),...
+    dir([sessionDir filesep 'WhiskerTracking' filesep '*' ignoreExt]),'UniformOutput',false); % Returns list of files that are already tracked
 c = setdiff(include_files,ignore_files);
 disp(['Number of files detected :' numel(include_files)])
 disp(['Number of files to ignore :' numel(ignore_files)])
@@ -157,8 +271,8 @@ include_files = c;
 
 % initialize parameters
 face_x_y = round([whiskerPadCoordinates(1)+whiskerPadCoordinates(3)/2,...
-    whiskerPadCoordinates(2)+whiskerPadCoordinates(4)/2]); %[140 264]; 
-num_whiskers = 3; %-1 %10; 
+    whiskerPadCoordinates(2)+whiskerPadCoordinates(4)/2]); %[140 264];
+num_whiskers = 3; %-1 %10;
 
 % all files
 tic
@@ -183,19 +297,25 @@ toc
 %% Link measurements %%
 %%%%%%%%%%%%%%%%%%%%%%%
 
-% filePath = fullfile(sessionDir, 'WhiskerTracking', [fileName '.measurements']); %'D:\Vincent\vIRt43\vIRt43_1204\WhiskerTracking\vIRt43_1204_4400_20191204-171925_HSCam_Trial0.measurements'; 
+%% Use BindMeasurements
+if strcmp(regexp(cd,['(?<=\' filesep ')\w+$'],'match','once'),'WhiskerTracking')
+    cd ..
+end
+BindMeasurements;
 
-%% Test performence with one trial 
+% filePath = fullfile(sessionDir, 'WhiskerTracking', [fileName '.measurements']); %'D:\Vincent\vIRt43\vIRt43_1204\WhiskerTracking\vIRt43_1204_4400_20191204-171925_HSCam_Trial0.measurements';
+
+%% Test performence with one trial
 
 % Initialize object
 % ow = OneWhisker('path', filePath, 'silent', false, ...
 %     'whiskerID', 0, ...
 %     'distToFace', 30, ... % for face mask
-%     'polyRoiInPix', [31 163], ... % point of interest on whisker close to pole 
+%     'polyRoiInPix', [31 163], ... % point of interest on whisker close to pole
 %     'rInMm', 4.5, ... %point where curvature is measured
-%     'whiskerRadiusAtBaseInMicron', 44, ... %post-hoc measurement   
-%     'whiskerLengthInMm', 25.183, ...    %post-hoc measurement   
-%     'faceSideInImage', 'top', ... 
+%     'whiskerRadiusAtBaseInMicron', 44, ... %post-hoc measurement
+%     'whiskerLengthInMm', 25.183, ...    %post-hoc measurement
+%     'faceSideInImage', 'top', ...
 %     'protractionDirection', 'leftward',...
 %     'linkingDirection','rostral',...
 %     'whiskerpadROI',whiskerPadCoordinates,...
@@ -205,10 +325,10 @@ toc
 % Then link
 % ow.LinkWhiskers('Force', true);            % see Guide for the detail about 'Force'
 
-% Additional processing 
-% ow.MakeMasks('Force', true);  
-% ow.DetectBar('Force', true);  
-% ow.DoPhysics('Force', true);  
+% Additional processing
+% ow.MakeMasks('Force', true);
+% ow.DetectBar('Force', true);
+% ow.DoPhysics('Force', true);
 
 %% Loop through session
 for fileNum=1:numel(include_files)
@@ -236,6 +356,21 @@ for fileNum=1:numel(include_files)
 end
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 %% Link whole session
 if ~exist([sessionDir filesep 'settings'],'dir')
     mkdir([sessionDir filesep 'settings']);
@@ -255,7 +390,7 @@ mw = ManyWhiskers([sessionDir filesep 'WhiskerTracking'], ...
 num_whiskers=3;
 for fileNum=1:numel(include_files)
     syscall = ['C:\Progra~1\WhiskerTracking\bin\measure --face ' num2str(face_x_y)...
-    ' x  ' fileName '.whiskers ' fileName '.measurements']; disp(syscall); system(syscall);
+        ' x  ' fileName '.whiskers ' fileName '.measurements']; disp(syscall); system(syscall);
     syscall = ['C:\Progra~1\WhiskerTracking\bin\classify ' fileName '.measurements ' ...
         fileName '.measurements ' num2str(face_x_y) ' x --px2mm 0.064 -n ' ...
         num2str(num_whiskers) ' --limit2.0:50.0']; %--limit2.0:50.0'

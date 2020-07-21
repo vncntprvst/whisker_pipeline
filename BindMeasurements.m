@@ -6,26 +6,32 @@ dirListing=dir(sessionDir);
 videoFiles = cellfun(@(fileFormat) dir([sessionDir filesep fileFormat]),...
     {'*.mp4','*.avi'},'UniformOutput', false);
 videoFiles=vertcat(videoFiles{~cellfun('isempty',videoFiles)});
-cd([cd filesep 'workspace'])
+cd([cd filesep 'WhiskerTracking'])
 wsdirListing=dir(cd);
 %% List whisker data files
-allwhiskerMeasurmentFiles = cellfun(@(fileFormat) dir([cd filesep fileFormat]),...
+allwhiskerMeasurementFiles = cellfun(@(fileFormat) dir([cd filesep fileFormat]),...
     {'*.measurements'},'UniformOutput', false);
-allwhiskerMeasurmentFiles=vertcat(allwhiskerMeasurmentFiles{~cellfun('isempty',allwhiskerMeasurmentFiles)});
+allwhiskerMeasurementFiles=vertcat(allwhiskerMeasurementFiles{~cellfun('isempty',allwhiskerMeasurementFiles)});
+% for now, discard curated
+allwhiskerMeasurementFiles=allwhiskerMeasurementFiles(~cellfun(@(fileName)...
+    contains(fileName,'curated'), {allwhiskerMeasurementFiles.name}));
 
 %% Get whisker data
 for fileNum=1:numel(videoFiles)
     videoFileName=videoFiles(fileNum).name;
     % list whisker data files
     whiskerFileIdx=cellfun(@(fName) strfind(fName,videoFileName(1:end-4)),...
-        {allwhiskerMeasurmentFiles.name},'UniformOutput',false);
+        {allwhiskerMeasurementFiles.name},'UniformOutput',false);
     whiskerFileIdx=~cellfun(@isempty,whiskerFileIdx);
-    whiskerMeasurmentFiles=allwhiskerMeasurmentFiles(whiskerFileIdx,:);
+    whiskerMeasurmentFiles=allwhiskerMeasurementFiles(whiskerFileIdx,:);
     partNum=cellfun(@(x) str2double(regexp(x,'\d+(?=.measurements)','match')),... %(?<=_\w+)
         {whiskerMeasurmentFiles.name});
     [~,sortFileIdx]=sort(partNum);
     whiskerMeasurmentFiles=whiskerMeasurmentFiles(sortFileIdx,:);
     recordingName=regexprep(videoFileName(1:end-4),'\W','');
+    if length(recordingName)>=52 %will be too long once _WhiskerData is added
+        recordingName = recordingName(1:51);
+    end
     allWhiskerData.(recordingName)=struct(...
         'partID',[],'fid',[],'wid',[],'angle',[],'follicle_x',[],'follicle_y',[]);
     
@@ -64,15 +70,15 @@ for fileNum=1:numel(fileNames)
 end
 
 %% Plot
-dt=0.002;
-time=double([allWhiskerData.(recordingName).fid]).*dt;
-angle=[allWhiskerData.(recordingName).angle];
-colors=['r','k','g','b','c','m'];
-figure;clf;
-hold on;
-for whisker_id=1:2%max([allWhiskerData.(recordingName)(:).wid])
-    mask = [allWhiskerData.(recordingName).wid]==whisker_id;
-    plot(time(mask),angle(mask));%colors(whisker_id+1)
-end
+% dt=0.002;
+% time=double([allWhiskerData.(recordingName).fid]).*dt;
+% angle=[allWhiskerData.(recordingName).angle];
+% colors=['r','k','g','b','c','m'];
+% figure;clf;
+% hold on;
+% for whisker_id=1:2%max([allWhiskerData.(recordingName)(:).wid])
+%     mask = [allWhiskerData.(recordingName).wid]==whisker_id;
+%     plot(time(mask),angle(mask));%colors(whisker_id+1)
+% end
 
 
