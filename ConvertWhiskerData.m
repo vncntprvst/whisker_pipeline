@@ -51,31 +51,33 @@ for fileNum=1:numel(whiskerDataFiles)
         syncTTLs = fread(syncDataFile,'double');
         fclose(syncDataFile);
         
-        syncFixIdx=cellfun(@(fF) contains(fF,videoSyncFiles(compIndex).name(1:end-14)), {syncFixFiles.name});
-        if any(syncFixIdx) & ~contains(videoSyncFiles(compIndex).name,'Fixed')
-            load(fullfile(syncFixFiles(syncFixIdx).folder,syncFixFiles(syncFixIdx).name));
-            for fixNum=1:numel(vSyncFix)
-                switch vSyncFix(fixNum).fixType
-                    case 'disregard'
-                        syncTTLs(vSyncFix(fixNum).fixIndex)=NaN;
-                    case 'add' %need to code that
-                    case 'none' %all clear
+        if any(syncFixFiles)
+            syncFixIdx=cellfun(@(fF) contains(fF,videoSyncFiles(compIndex).name(1:end-14)), {syncFixFiles.name});
+            if any(syncFixIdx) & ~contains(videoSyncFiles(compIndex).name,'Fixed')
+                load(fullfile(syncFixFiles(syncFixIdx).folder,syncFixFiles(syncFixIdx).name));
+                for fixNum=1:numel(vSyncFix)
+                    switch vSyncFix(fixNum).fixType
+                        case 'disregard'
+                            syncTTLs(vSyncFix(fixNum).fixIndex)=NaN;
+                        case 'add' %need to code that
+                        case 'none' %all clear
+                    end
                 end
+                syncTTLs=syncTTLs(~isnan(syncTTLs));
+                
+                % overwrite video sync data
+                fclose all;
+                delete(fullfile(videoSyncFiles(compIndex).folder,videoSyncFiles(compIndex).name))
+                syncDataFile = fopen([fullfile(videoSyncFiles(compIndex).folder,...
+                    videoSyncFiles(compIndex).name(1:end-4)) '_Fixed.dat'],'w');
+                fwrite(syncDataFile,syncTTLs,'double');
+                fclose(syncDataFile);
             end
-            syncTTLs=syncTTLs(~isnan(syncTTLs));
-        
-            % overwrite video sync data
-            fclose all;
-            delete(fullfile(videoSyncFiles(compIndex).folder,videoSyncFiles(compIndex).name))
-            syncDataFile = fopen([fullfile(videoSyncFiles(compIndex).folder,...
-                videoSyncFiles(compIndex).name(1:end-4)) '_Fixed.dat'],'w');
-            fwrite(syncDataFile,syncTTLs,'double');
-            fclose(syncDataFile);
         end
 
         % get data for one whisker
         
-        Need to add fix if frame 0 does not have data
+        %% Need to add fix if frame 0 does not have data
         
         frameIdx=w.WP_Data.fid(w.WP_Data.wid==1);
         if frameIdx(1)==0; frameIdx=frameIdx+1; end
