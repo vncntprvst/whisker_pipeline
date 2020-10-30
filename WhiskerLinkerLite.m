@@ -30,15 +30,25 @@ classdef WhiskerLinkerLite < handle
             p.addParameter('whiskerpadROI', NaN, @isnumeric);
             p.addParameter('linkingDirection', 'rostral', @ischar);
             p.addParameter('faceSideInImage', 'bottom', @ischar);
-            p.addParameter('protractionDirection', 'leftward', @ischar);
-            p.addParameter('whiskerLengthThresh',100,@isnumeric);
+            p.addParameter('protractionDirection', 'rightward', @ischar);
+%             p.addParameter('whiskerLengthThresh',100,@isnumeric);
             p.parse(varargin{:});
             
             whiskerpadROI=p.Results.whiskerpadROI;
             linkingDirection=p.Results.linkingDirection;
             faceSideInImage=p.Results.faceSideInImage;
             protractionDirection=p.Results.protractionDirection;
-            whiskerLengthThresh=p.Results.whiskerLengthThresh;
+            
+            %Define length threshold
+%             whiskerLengthThresh=p.Results.whiskerLengthThresh;
+            % sort lengths in two clusters
+            allLengths=[this.measurements.length];
+            lengthGroups=kmeans(allLengths',2);
+            % find cluster with smallest mean length and base threshold on it
+            meanLengths=[mean(allLengths(lengthGroups==1)),mean(allLengths(lengthGroups==2))];
+            smallLengthClus=find(meanLengths==min(meanLengths));
+            whiskerLengthThresh=mean(allLengths(lengthGroups==smallLengthClus))+...
+                3*std(allLengths(lengthGroups==smallLengthClus));
             
             %define whisker id order
             switch protractionDirection; case {'rightward','downward'}; protractSign =1;...
@@ -61,7 +71,7 @@ classdef WhiskerLinkerLite < handle
                     [ this.outMeasurements.follicle_y ] < whiskerpadROI(2);
                     %        
             else %hardcode
-                blacklist = [ this.outMeasurements.length ] < 100 | ...
+                blacklist = [ this.outMeasurements.length ] < whiskerLengthThresh | ...
                     [ this.outMeasurements.score ] < 100 | ...
                     [ this.outMeasurements.follicle_x ] > 640 | ...
                     [ this.outMeasurements.follicle_x ] < 0 | ...
@@ -92,7 +102,7 @@ classdef WhiskerLinkerLite < handle
                     end
                 end
                 
-                % Combine faulty overlapping segments (e.g. KS0167A_Num460 frame 1206)
+                % Combine faulty overlapping segments
                 follicleX = [ this.outMeasurements(entryIndByFrame{i+1}).follicle_x ]';
                 follicleY = [ this.outMeasurements(entryIndByFrame{i+1}).follicle_y ]';
                 if ~isempty(follicleX)

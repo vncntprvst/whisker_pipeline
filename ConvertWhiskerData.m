@@ -44,14 +44,23 @@ for fileNum=1:numel(whiskerDataFiles)
                 {videoSyncFiles.name});
             if sum(compIndex)==1 %found it
                 break
+            elseif sum(compIndex)==2
+                %same basename, but one has a suffix. Keep the shorter one.
+                disp('Ambiguity in finding videoSyncFiles. Assuming one has a suffix')
+                suffixLength=cellfun(@(fileName) length(fileName(strCompLength:end)),...
+                    {videoSyncFiles(compIndex).name});
+                compIndex=find(compIndex);
+                compIndex=compIndex(suffixLength==min(suffixLength));
+                break
             end
         end
+
         % load video sync data
         syncDataFile = fopen(fullfile(videoSyncFiles(compIndex).folder,videoSyncFiles(compIndex).name));
-        syncTTLs = fread(syncDataFile,'double');
+        syncTTLs = fread(syncDataFile,'single');
         fclose(syncDataFile);
         
-        if any(syncFixFiles)
+        if ~isempty(syncFixFiles)
             syncFixIdx=cellfun(@(fF) contains(fF,videoSyncFiles(compIndex).name(1:end-14)), {syncFixFiles.name});
             if any(syncFixIdx) & ~contains(videoSyncFiles(compIndex).name,'Fixed')
                 load(fullfile(syncFixFiles(syncFixIdx).folder,syncFixFiles(syncFixIdx).name));
@@ -64,33 +73,43 @@ for fileNum=1:numel(whiskerDataFiles)
                     end
                 end
                 syncTTLs=syncTTLs(~isnan(syncTTLs));
-                
+                syncTTLs=single(syncTTLs);
                 % overwrite video sync data
                 fclose all;
                 delete(fullfile(videoSyncFiles(compIndex).folder,videoSyncFiles(compIndex).name))
                 syncDataFile = fopen([fullfile(videoSyncFiles(compIndex).folder,...
                     videoSyncFiles(compIndex).name(1:end-4)) '_Fixed.dat'],'w');
-                fwrite(syncDataFile,syncTTLs,'double');
+                fwrite(syncDataFile,syncTTLs,'single');
                 fclose(syncDataFile);
             end
         end
-
-        % get data for one whisker
         
+        % convert to table if needed
+        if contains(class(w.WP_Data),'struct')
+            w.WP_Data=struct2table(w.WP_Data);
+        end
+        
+        %ID whiskers to isolate data for one whisker
+%         tic
+        [~,keepWhiskerIDs,bestWhisker]=FixWhiskerID(w);
+%         toc
+
         %% Need to add fix if frame 0 does not have data
         
-        frameIdx=w.WP_Data.fid(w.WP_Data.wid==1);
+        frameIdx=w.WP_Data.fid(w.WP_Data.wid==keepWhiskerIDs(bestWhisker));
         if frameIdx(1)==0; frameIdx=frameIdx+1; end
         
-        w.Angle=w.WP_Data.angle(w.WP_Data.wid==1);
-        w.folX=w.WP_Data.follicle_x(w.WP_Data.wid==1);
-        w.folY=w.WP_Data.follicle_y(w.WP_Data.wid==1);
+        w.Angle=w.WP_Data.angle(w.WP_Data.wid==keepWhiskerIDs(bestWhisker));
+        w.folX=w.WP_Data.follicle_x(w.WP_Data.wid==keepWhiskerIDs(bestWhisker));
+        w.folY=w.WP_Data.follicle_y(w.WP_Data.wid==keepWhiskerIDs(bestWhisker));
 
         %% resample (original sampling rate is 1000/mode(diff(TTLSignals)) )
         w.Angle=timeseries(w.Angle,syncTTLs(frameIdx)); %Issue with slow TTL drift (1ms every s) -> TTL issued from camera may not be so reliable? OR just the trigger itself
-        w.Angle=resample(w.Angle,w.Angle.Time(1):w.Angle.Time(end));
         samplingRate=1000;
-        
+        w.Angle=resample(w.Angle,w.Angle.Time(1):1/samplingRate:w.Angle.Time(end));
+           
+        %% keep timestamp 
+        w.Timestamp=w.Angle.Time';
         %% compare with video (sanity check)
 %         frameTimes=syncTTLs-syncTTLs(1);boutIndex=350000:352000;
 %         wBoutFrames=WhiskingBoutVideo([],[],boutIndex,frameTimes);
