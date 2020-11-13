@@ -8,42 +8,16 @@ videoFiles=ListVideoFiles(sessionDir);
 % list timestamps files
 timestampFiles=ListTSFiles(sessionDir);
 
-% get whiskerpad coordinates
+% get and save whiskerpad coordinates
 firstVideo=VideoReader(videoFiles(1).name);
-vidFrame = readFrame(firstVideo);
-figure; image(vidFrame);
-set(gcf, 'position', [450   571   560   420])
 
-% Ask if video needs to be split
-splitUp = questdlg('Do you need to split the video?', ...
-    'Video splitting', 'Yes','No','No');
-close(gcf);
-switch splitUp
-    case 'No'
-        % get whisker pad coordinates
-        % get whisking parameters
-        whiskingParams = WhiskingFun.GetWhiskingParams(vidFrame);
-        %clearvars firstVideo
-    case 'Yes'
-        midWidth=round(size(vidFrame,2)/2);
-        % get whisking parameters for left side
-        leftImage=vidFrame(:,1:midWidth,:);
-        whiskingParams = WhiskingFun.GetWhiskingParams(leftImage);
-        % get whisking parameters for right side
-        rightImage=vidFrame(:,midWidth+1:end,:);
-        whiskingParams(2) = WhiskingFun.GetWhiskingParams(rightImage);
-end
+whiskingParams=WhiskingFun.DrawWhiskerPadROI(firstVideo);
 
 if ~isfolder('WhiskerTracking')
     mkdir('WhiskerTracking');
 end
 
-str=strrep(jsonencode(whiskingParams),',"',sprintf(',\r\n\t"'));
-str=regexprep(str,'(?<={)"','\r\n\t"');
-str=regexprep(str,'"(?=})','"\r\n');
-fid = fopen(fullfile(sessionDir,'WhiskerTracking','whiskerpad.json'),'w');
-fprintf(fid,'%s',str);
-fclose(fid);
+SaveWhiskingParams(whiskingParams,fullfile(sessionDir,'WhiskerTracking'))
 
 % Write Frame Split Index File
 [frameTimes,frameTimeInterval] = CreateVideoTimeSplitFile(videoFiles,timestampFiles);
@@ -252,8 +226,8 @@ end
 if strcmp(regexp(cd,['(?<=\' filesep ')\w+$'],'match','once'),'WhiskerTracking')
     cd ..
 end
-BindMeasurements;
-ConvertWhiskerData;
+sessionDir = cd;
+SaveWhiskerData(sessionDir);
 
 %% Test performence with one trial
 if false
