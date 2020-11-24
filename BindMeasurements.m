@@ -90,7 +90,8 @@ for fileNum=1:numel(videoFiles)
         
         % remove whiskers outside whiskerpad area
         [whiskerData,blacklist]=WhiskingFun.RestrictToWhiskerPad(whiskerData,...
-            whiskerpad(sideIndex(reIndex(mFileNum))+1).Coordinates);
+            whiskerpad(sideIndex(reIndex(mFileNum))+1).Coordinates,...
+            whiskerpad(sideIndex(reIndex(mFileNum))+1).ImageDimensions);
         % -> apply to .whisker data 
 %         whiskerVals=whiskerVals(~blacklist,:);
         

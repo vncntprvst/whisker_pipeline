@@ -11,13 +11,13 @@ timestampFiles=ListTSFiles(sessionDir);
 % get and save whiskerpad coordinates
 firstVideo=VideoReader(videoFiles(1).name);
 
-whiskingParams=WhiskingFun.DrawWhiskerPadROI(firstVideo);
+[whiskingParams,splitUp]=WhiskingFun.DrawWhiskerPadROI(firstVideo);
 
 if ~isfolder('WhiskerTracking')
     mkdir('WhiskerTracking');
 end
 
-SaveWhiskingParams(whiskingParams,fullfile(sessionDir,'WhiskerTracking'))
+WhiskingFun.SaveWhiskingParams(whiskingParams,fullfile(sessionDir,'WhiskerTracking'))
 
 % Write Frame Split Index File
 [frameTimes,frameTimeInterval] = CreateVideoTimeSplitFile(videoFiles,timestampFiles);

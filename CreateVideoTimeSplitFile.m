@@ -70,7 +70,7 @@ for fileNum=1:numel(videoFiles)
             %         [ipiFreq,uniqueIPIs]=hist(foo,unique(double(foo)))
             
             %         if BR rec:
-            triggerTimes=TTLs{1, 2}.start(1,:)/TTLs{1, 2}.samplingRate*1000; %TTLs{1, 2}.TTLtimes
+            triggerTimes=TTLs{1, 2}(2).start/TTLs{1, 2}(2).samplingRate*1000; %TTLs{1, 2}.TTLtimes
             %         if OE rec:
             %         triggerTimes = TTLs{1, 2}(1,TTLs{1, 2}(2,:)>0)/30;
             if numel(triggerTimes)>12 %if not old setup
@@ -136,6 +136,10 @@ for fileNum=1:numel(videoFiles)
                 %             end
                 
             else
+                frameTimes=frameTimes(1:numFrames);
+            end
+        else
+            if numel(frameTimes)>numFrames
                 frameTimes=frameTimes(1:numFrames);
             end
         end
