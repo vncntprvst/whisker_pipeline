@@ -137,8 +137,11 @@ for fileNum=1:numel(videoFiles)
     % All chunks are assumed to have the same number of frames (except the last one, which is fine)
     numFrames=mode(numFrames);
     if numFrames~=vidNumFrames
-        disp('inconsistent number of frames vs fids')
-        return
+        disp({['inconsistent number of frames vs fids for ' ...
+            wmFiles(mFileNum).name]; ...
+            ['Number of frames: ' num2str(vidNumFrames)];
+            ['Number of fids: ' num2str(numFrames)]})
+%         return
     end
     
     % adjust fids
