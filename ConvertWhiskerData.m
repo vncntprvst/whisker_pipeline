@@ -84,18 +84,40 @@ for fileNum=1:numFiles
             whiskers(whiskNum).WP_Data=wtData(wtData.wid==keepWhiskerIDs(whiskNum),:);
             frameIdx=whiskers(whiskNum).WP_Data.fid+1; %frames are zero-indexed
             
-            whiskers(whiskNum).Angle=whiskers(whiskNum).WP_Data.angle;
-            whiskers(whiskNum).folX=whiskers(whiskNum).WP_Data.follicle_x;
-            whiskers(whiskNum).folY=whiskers(whiskNum).WP_Data.follicle_y;
+%             whiskers(whiskNum).angle=whiskers(whiskNum).WP_Data.angle;
+%             whiskers(whiskNum).folX=whiskers(whiskNum).WP_Data.follicle_x;
+%             whiskers(whiskNum).folY=whiskers(whiskNum).WP_Data.follicle_y;
             
-            %% resample (original sampling rate is 1000/mode(diff(TTLSignals)) )
-            whiskers(whiskNum).Angle=timeseries(whiskers(whiskNum).Angle,syncTTLs(frameIdx)); %Issue with slow TTL drift (1ms every s) -> TTL issued from camera may not be so reliable? OR just the trigger itself
+            %% resample (original sampling rate is 1000/mode(diff(TTLSignals)) )            
+%             whiskers(whiskNum).WP_Data.timestamp=datetime(syncTTLs(frameIdx),'ConvertFrom','epochtime','Epoch','2020-08-02');
+%             whiskers(whiskNum).data=table2timetable(whiskers(whiskNum).WP_Data,'RowTimes','timestamp');
+            dataFields = fieldnames(whiskers(whiskNum).WP_Data); 
+            whiskers(whiskNum).WP_Data=timeseries(table2array(whiskers(whiskNum).WP_Data),syncTTLs(frameIdx));
             samplingRate=1000;
-            whiskers(whiskNum).Angle=resample(whiskers(whiskNum).Angle,whiskers(whiskNum).Angle....
-                .Time(1):1/samplingRate:whiskers(whiskNum).Angle.Time(end));
+            whiskers(whiskNum).WP_Data=resample(whiskers(whiskNum).WP_Data,whiskers(whiskNum).WP_Data....
+                .Time(1):1/samplingRate:whiskers(whiskNum).WP_Data.Time(end));
+            
+            % get fields of interest
+            whiskers(whiskNum).angle=whiskers(whiskNum).WP_Data.Data(:,...
+                cellfun(@(fldName) strcmp(fldName,'angle'), dataFields))';
+            whiskers(whiskNum).folX=whiskers(whiskNum).WP_Data.Data(:,...
+                cellfun(@(fldName) strcmp(fldName,'follicle_x'), dataFields))';
+            whiskers(whiskNum).folY=whiskers(whiskNum).WP_Data.Data(:,...
+                cellfun(@(fldName) strcmp(fldName,'follicle_y'), dataFields))';
+            whiskers(whiskNum).tipX=whiskers(whiskNum).WP_Data.Data(:,...
+                cellfun(@(fldName) strcmp(fldName,'tip_x'), dataFields))';
+            whiskers(whiskNum).tipY=whiskers(whiskNum).WP_Data.Data(:,...
+                cellfun(@(fldName) strcmp(fldName,'tip_y'), dataFields))';
+            whiskers(whiskNum).faceX=whiskers(whiskNum).WP_Data.Data(:,...
+                cellfun(@(fldName) strcmp(fldName,'face_x'), dataFields))';
+            whiskers(whiskNum).faceY=whiskers(whiskNum).WP_Data.Data(:,...
+                cellfun(@(fldName) strcmp(fldName,'face_y'), dataFields))';
+            whiskers(whiskNum).curvature=whiskers(whiskNum).WP_Data.Data(:,...
+                cellfun(@(fldName) strcmp(fldName,'curvature'), dataFields))';
+           
             
             %% keep timestamp
-            whiskers(whiskNum).Timestamp=whiskers(whiskNum).Angle.Time';
+            whiskers(whiskNum).timestamp=whiskers(whiskNum).WP_Data.Time';
             %% compare with video (sanity check)
             %         frameTimes=syncTTLs-syncTTLs(1);boutIndex=350000:352000;
             %         wBoutFrames=WhiskingBoutVideo([],[],boutIndex,frameTimes);
@@ -105,26 +127,26 @@ for fileNum=1:numFiles
             %
             %         figure('position',[1500 450  vidDims(2) vidDims(1)],'color','k');
             %         frameTimeIdx=frameTimes>=boutIndex(1) & frameTimes<=boutIndex(end);
-            %         FrameByFrame_Overlay(wBoutFrames,[w(whiskNum).folX(frameTimeIdx),w(whiskNum).folY(frameTimeIdx),w(whiskNum).Angle(frameTimeIdx)]);
+            %         FrameByFrame_Overlay(wBoutFrames,[w(whiskNum).folX(frameTimeIdx),w(whiskNum).folY(frameTimeIdx),w(whiskNum).angle(frameTimeIdx)]);
             
             %% remove outliers
-            whiskers(whiskNum).Angle_raw=WhiskerAngleSmoothFill(whiskers(whiskNum).Angle.Data);
+            whiskers(whiskNum).angle_raw=WhiskerAngleSmoothFill(whiskers(whiskNum).angle);
             
             %% compute other measurements
             % find phase and frequency
-            [whiskers(whiskNum).Phase,whiskers(whiskNum).Freq]=WhiskingFun.ComputePhase(whiskers(whiskNum).Angle_raw,samplingRate); %WhiskingFun.BandPassBehavData(w(whiskNum).Angle,1000,[4 20])
+            [whiskers(whiskNum).phase,whiskers(whiskNum).freq]=WhiskingFun.ComputePhase(whiskers(whiskNum).angle_raw,samplingRate); %WhiskingFun.BandPassBehavData(w(whiskNum).angle,1000,[4 20])
             % find amplitude
-            whiskers(whiskNum).Amplitude=WhiskingFun.GetAmplitude(whiskers(whiskNum).Angle_raw,whiskers(whiskNum).Phase);
+            whiskers(whiskNum).amplitude=WhiskingFun.GetAmplitude(whiskers(whiskNum).angle_raw,whiskers(whiskNum).phase);
             % find set-point
-            whiskers(whiskNum).SetPoint=WhiskingFun.LowPassBehavData(whiskers(whiskNum).Angle_raw,1000,4); %WhiskingFun.GetSetPoint(w(whiskNum).Angle_raw,w(whiskNum).Phase);
+            whiskers(whiskNum).setPoint=WhiskingFun.LowPassBehavData(whiskers(whiskNum).angle_raw,1000,4); %WhiskingFun.GetSetPoint(w(whiskNum).angle_raw,w(whiskNum).Phase);
             % filter angle values
-            whiskers(whiskNum).Angle_BP=WhiskingFun.BandPassBehavData(whiskers(whiskNum).Angle_raw,1000,[4 30]); %smoothes out high frequencies and removes set point
-            whiskers(whiskNum).Angle = WhiskingFun.LowPassBehavData(whiskers(whiskNum).Angle_raw,1000,40); %just smoothing out high frequencies
+            whiskers(whiskNum).angle_BP=WhiskingFun.BandPassBehavData(whiskers(whiskNum).angle_raw,1000,[4 30]); %smoothes out high frequencies and removes set point
+            whiskers(whiskNum).angle = WhiskingFun.LowPassBehavData(whiskers(whiskNum).angle_raw,1000,40); %just smoothing out high frequencies
             % derive velocity
-            whiskers(whiskNum).Velocity=diff(whiskers(whiskNum).Angle); whiskers(whiskNum).Velocity=[whiskers(whiskNum).Velocity(1) whiskers(whiskNum).Velocity];
+            whiskers(whiskNum).velocity=diff(whiskers(whiskNum).angle); whiskers(whiskNum).velocity=[whiskers(whiskNum).velocity(1) whiskers(whiskNum).velocity];
             
             %% if trace is too short, pad with nans
-            if numel(whiskers(whiskNum).Angle) < numel(syncTTLs)*mode(diff(syncTTLs))
+            if numel(whiskers(whiskNum).angle) < numel(syncTTLs)*mode(diff(syncTTLs))
                 wFields=fieldnames(whiskers);
                 for fieldNum=1:numel(wFields)
                     try whiskers(whiskNum).(wFields{fieldNum})(end+1:numel(syncTTLs)*mode(diff(syncTTLs)))=nan; catch; end
