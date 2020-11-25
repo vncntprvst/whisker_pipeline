@@ -85,13 +85,17 @@ for fileNum=1:numel(videoFiles)
         mfName=wmFiles(mFileNum).name;
         whiskerData = Whisker.LoadMeasurements(mfName);
 %         whiskerVals=Whisker.LoadWhiskers(strrep(mfName,'.measurements','.whiskers'));
-
 %         overlap_whiskers_on_video(strrep(mfName,'.measurements',''),1)
         
         % remove whiskers outside whiskerpad area
-        [whiskerData,blacklist]=WhiskingFun.RestrictToWhiskerPad(whiskerData,...
-            whiskerpad(sideIndex(reIndex(mFileNum))+1).Coordinates,...
-            whiskerpad(sideIndex(reIndex(mFileNum))+1).ImageDimensions);
+        if isfield(whiskerpad,'ImageDimensions')
+            [whiskerData,blacklist]=WhiskingFun.RestrictToWhiskerPad(whiskerData,...
+                whiskerpad(sideIndex(reIndex(mFileNum))+1).Coordinates,...
+                whiskerpad(sideIndex(reIndex(mFileNum))+1).ImageDimensions);
+        else
+            [whiskerData,blacklist]=WhiskingFun.RestrictToWhiskerPad(whiskerData,...
+                whiskerpad(sideIndex(reIndex(mFileNum))+1).Coordinates);
+        end
         % -> apply to .whisker data 
 %         whiskerVals=whiskerVals(~blacklist,:);
         
