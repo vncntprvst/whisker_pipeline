@@ -141,6 +141,8 @@ for fileNum=1:numel(videoFiles)
         else
             if numel(frameTimes)>numFrames
                 frameTimes=frameTimes(1:numFrames);
+            elseif numel(frameTimes)==numFrames-1 %extra frame recorded
+                frameTimes=[frameTimes;frameTimes(end)+ mode(diff(frameTimes))];
             end
         end
     else
