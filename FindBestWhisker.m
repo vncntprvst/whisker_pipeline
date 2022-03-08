@@ -15,6 +15,9 @@ if nargin>1
     wData=wData(sideIdx,:);
     [wFreq,uniqueWIDs]=hist(wData.wid,unique(wData.wid));
     kwi=uniqueWIDs(wFreq./numel(unique(wData.fid))>0.70);
+    if isempty(kwi)
+        kwi=uniqueWIDs(wFreq==max(wFreq));
+    end
     %recover "good" whiskers that may have been crowded out by whiskers on the other side. 
     keepWhiskerIDs=unique([keepWhiskerIDs;kwi]); 
 end

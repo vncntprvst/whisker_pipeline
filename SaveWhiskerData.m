@@ -29,7 +29,7 @@ for fileNum=1:numel(videoFiles)
         whiskerData=BindMeasurements(videoFiles(fileNum),whiskerMeasurementFiles,false);
         % Fix sync TTLs if necessary 
         cd(sessionDir)
-        FixSync(whiskerData);
+        FixSync(whiskerData); %should skip this if unneeded
         % convert angles to advanced values (phase, etc ...) and save them 
         ConvertWhiskerData(whiskerData);
     catch ME

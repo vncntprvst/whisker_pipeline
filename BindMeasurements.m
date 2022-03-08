@@ -88,20 +88,24 @@ for fileNum=1:numel(videoFiles)
 %         overlap_whiskers_on_video(strrep(mfName,'.measurements',''),1)
         
         % remove whiskers outside whiskerpad area
-        if isfield(whiskerpad,'ImageDimensions')
-            [whiskerData,blacklist]=WhiskingFun.RestrictToWhiskerPad(whiskerData,...
-                whiskerpad(sideIndex(reIndex(mFileNum))+1).Coordinates,...
-                whiskerpad(sideIndex(reIndex(mFileNum))+1).ImageDimensions);
-        else
-            [whiskerData,blacklist]=WhiskingFun.RestrictToWhiskerPad(whiskerData,...
-                whiskerpad(sideIndex(reIndex(mFileNum))+1).Coordinates);
-        end
+%         if isfield(whiskerpad,'ImageDimensions')
+% %             mFileNum
+%             [whiskerData,blacklist]=WhiskingFun.RestrictToWhiskerPad(whiskerData,...
+%                 whiskerpad(sideIndex(reIndex(mFileNum))+1).Coordinates,...
+%                 whiskerpad(sideIndex(reIndex(mFileNum))+1).ImageDimensions);
+%         else
+%             [whiskerData,blacklist]=WhiskingFun.RestrictToWhiskerPad(whiskerData,...
+%                 whiskerpad(sideIndex(reIndex(mFileNum))+1).Coordinates);
+%         end
         % -> apply to .whisker data 
 %         whiskerVals=whiskerVals(~blacklist,:);
-        
+
+        wCluster = WhiskingFun.ClusterWhiskers(whiskerData);
+
         % remove non-whisker objects 
-        labelIdx=[whiskerData.label]>=0;
-        whiskerData = whiskerData(labelIdx,:); 
+        whiskerData=whiskerData(wCluster);
+%         labelIdx=[whiskerData.label]>=0;
+%         whiskerData = whiskerData(labelIdx,:); 
         % -> apply to .whisker data 
 %         whiskerVals=whiskerVals(labelIdx,:);
 
@@ -109,7 +113,7 @@ for fileNum=1:numel(videoFiles)
         
         % Fix IDs - 
 %         FixWhiskerID(whiskerData);
-        
+
         if any(ismember(widRaiseIdx,mFileNum))
             if mFileNum==widRaiseIdx(1)
                 % find how much to increase the whisker id number
@@ -139,6 +143,10 @@ for fileNum=1:numel(videoFiles)
         numFrames(mFileNum)=numel(unique([whiskerData.fid]));
     end
     
+    figure;
+    plot([whiskerData(1).follicle_x,whiskerData(1).tip_x],...
+        [whiskerData(1).follicle_y,whiskerData(1).tip_y])
+    
     % All chunks are assumed to have the same number of frames (except the last one, which is fine)
     numFrames=mode(numFrames);
     if numFrames~=vidNumFrames
@@ -151,7 +159,7 @@ for fileNum=1:numel(videoFiles)
     
     % adjust fids
     for mFileNum=1:numel(unique(partNum))
-        numPrecedFrame=numFrames*partNum(reIndex(mFileNum));
+        numPrecedFrame=vidNumFrames*partNum(reIndex(mFileNum));
         entryRange=ismember([allWhiskerData.(recordingName).partID],mFileNum-1);
         allWhiskerData.(recordingName).fid(entryRange,1)=...
             allWhiskerData.(recordingName).fid(entryRange,1)+numPrecedFrame;

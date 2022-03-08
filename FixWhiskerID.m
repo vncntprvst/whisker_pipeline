@@ -1,9 +1,28 @@
 function wData=FixWhiskerID(wData)
 
 % Compute centroids 
-% simple version on measxurements with follicles and tips 
+% simple version on measurements with follicles and tips 
 
-arrayfun(@(wVals) polyshape([wVals.follicle_x, wVals.tip_x],[wVals.follicle_y, wVals.tip_y]), wData);
+% arrayfun(@(wVals) polyshape([wVals.follicle_x, wVals.tip_x],[wVals.follicle_y, wVals.tip_y]), wData);
+
+
+%demux timeseries of whisker ids based on length and follicle
+wIDs=unique([wData([wData.wid]>=0).wid]);
+wFolx=[wData.follicle_x]; wFoly=[wData.follicle_y];
+wIdx=[wData.wid];
+
+% sideIdx=[wData.follicle_x]>[wData.tip_x];
+
+figure; hold on
+for wNum=1:4 %numel(wIDs)
+    wFolxVals=wFolx(wIdx==wIDs(wNum));
+    wFolyVals=wFoly(wIdx==wIDs(wNum));
+    plot(wFolxVals,wFolyVals,'.')
+end
+legend(num2str(wIDs'))
+
+See ExtractMixedSignalsExample
+% C:\Users\wanglab\Documents\MATLAB\Examples\R2020b\stats\ExtractMixedSignalsExample\ExtractMixedSignalsExample.m
 
 % Compute Euclidian distance
 
