@@ -61,11 +61,11 @@ for fileNum=1:numel(videoFiles)
         recordingName = recordingName(1:51);
     end
     allWhiskerData.(recordingName)=struct(...
-        'partID',[],'fid',[],'wid',[],...
+        'partID',[],'fid',[],'wid',[],'label',[],...
         'angle',[],'length',[],'curvature',[],...
         'follicle_x',[],'follicle_y',[],'tip_x',[],'tip_y',[],...
         'face_x',[],'face_y',[],...
-        'label',[],'score',[]);
+        'score',[],'whiskerPadIdx',[]);
     
     % deal with cases with measurements on both sides of the head
     sideIndex=zeros(numel(wmFiles),1);
@@ -74,7 +74,7 @@ for fileNum=1:numel(videoFiles)
             sideIndex(mFileNum)=1;
         end
     end
-    %reorder files 
+    %reorder files
     reIndex=[find(sideIndex==0);find(sideIndex==1)];
     wmFiles=wmFiles(reIndex,:);
     widRaiseIdx=find(ismember(reIndex,find(sideIndex==1)));
@@ -84,36 +84,37 @@ for fileNum=1:numel(videoFiles)
     for mFileNum=1:numel(wmFiles)
         mfName=wmFiles(mFileNum).name;
         whiskerData = Whisker.LoadMeasurements(mfName);
-%         whiskerVals=Whisker.LoadWhiskers(strrep(mfName,'.measurements','.whiskers'));
-%         overlap_whiskers_on_video(strrep(mfName,'.measurements',''),1)
+        %         whiskerVals=Whisker.LoadWhiskers(strrep(mfName,'.measurements','.whiskers'));
+        %         overlap_whiskers_on_video(strrep(mfName,'.measurements',''),1)
         
         % remove whiskers outside whiskerpad area
-%         if isfield(whiskerpad,'ImageDimensions')
-% %             mFileNum
-%             [whiskerData,blacklist]=WhiskingFun.RestrictToWhiskerPad(whiskerData,...
-%                 whiskerpad(sideIndex(reIndex(mFileNum))+1).Coordinates,...
-%                 whiskerpad(sideIndex(reIndex(mFileNum))+1).ImageDimensions);
-%         else
-%             [whiskerData,blacklist]=WhiskingFun.RestrictToWhiskerPad(whiskerData,...
-%                 whiskerpad(sideIndex(reIndex(mFileNum))+1).Coordinates);
-%         end
-        % -> apply to .whisker data 
-%         whiskerVals=whiskerVals(~blacklist,:);
-
+        %         if isfield(whiskerpad,'ImageDimensions')
+        % %             mFileNum
+        %             [whiskerData,blacklist]=WhiskingFun.RestrictToWhiskerPad(whiskerData,...
+        %                 whiskerpad(sideIndex(reIndex(mFileNum))+1).Coordinates,...
+        %                 whiskerpad(sideIndex(reIndex(mFileNum))+1).ImageDimensions);
+        %         else
+        %             [whiskerData,blacklist]=WhiskingFun.RestrictToWhiskerPad(whiskerData,...
+        %                 whiskerpad(sideIndex(reIndex(mFileNum))+1).Coordinates);
+        %         end
+        % -> apply to .whisker data
+        %         whiskerVals=whiskerVals(~blacklist,:);
+        
         wCluster = WhiskingFun.ClusterWhiskers(whiskerData);
-
-        % remove non-whisker objects 
+        
+        % remove non-whisker objects
         whiskerData=whiskerData(wCluster);
-%         labelIdx=[whiskerData.label]>=0;
-%         whiskerData = whiskerData(labelIdx,:); 
-        % -> apply to .whisker data 
-%         whiskerVals=whiskerVals(labelIdx,:);
-
+        %         labelIdx=[whiskerData.label]>=0;
+        %         whiskerData = whiskerData(labelIdx,:);
+        % -> apply to .whisker data
+        %         whiskerVals=whiskerVals(labelIdx,:);
+        
         if isempty(whiskerData); continue; end
         
-        % Fix IDs - 
-%         FixWhiskerID(whiskerData);
-
+        % Fix IDs
+        whiskerData=FixWhiskerID(whiskerData,whiskerpad);
+        
+        % Adjust wisker ID if from the contralateral side
         if any(ismember(widRaiseIdx,mFileNum))
             if mFileNum==widRaiseIdx(1)
                 % find how much to increase the whisker id number
@@ -124,11 +125,16 @@ for fileNum=1:numel(videoFiles)
             [whiskerData.wid] = widVals{:};
         end
         
+        % Add whiskerpad information 
+        whiskerPadIdx=1; if any(ismember(widRaiseIdx,mFileNum)); whiskerPadIdx=2; end
+        [whiskerData.whiskerPadIdx]=deal(whiskerPadIdx);           
+        
+        % save data to allWhiskerData structure
         currentDim=numel(allWhiskerData.(recordingName).partID);
         if currentDim==1, currentDim=0; end
         entryRange=currentDim+1:currentDim+numel(whiskerData);
         allWhiskerData.(recordingName).partID(entryRange,1)=partNum(reIndex(mFileNum));
-              
+        
         dataFields=fieldnames(whiskerData);
         for datafieldNum=1:numel(dataFields)
             if any(ismember(widRaiseIdx,mFileNum)) && any(strfind(dataFields{datafieldNum},'_x'))
@@ -143,9 +149,9 @@ for fileNum=1:numel(videoFiles)
         numFrames(mFileNum)=numel(unique([whiskerData.fid]));
     end
     
-    figure;
-    plot([whiskerData(1).follicle_x,whiskerData(1).tip_x],...
-        [whiskerData(1).follicle_y,whiskerData(1).tip_y])
+    %     figure;
+    %     plot([whiskerData(1).follicle_x,whiskerData(1).tip_x],...
+    %         [whiskerData(1).follicle_y,whiskerData(1).tip_y])
     
     % All chunks are assumed to have the same number of frames (except the last one, which is fine)
     numFrames=mode(numFrames);
@@ -154,18 +160,18 @@ for fileNum=1:numel(videoFiles)
             wmFiles(mFileNum).name]; ...
             ['Number of frames: ' num2str(vidNumFrames)];
             ['Number of fids: ' num2str(numFrames)]})
-%         return
+        %         return
     end
     
-    % adjust fids
+    % adjust frame ids
     for mFileNum=1:numel(unique(partNum))
         numPrecedFrame=vidNumFrames*partNum(reIndex(mFileNum));
         entryRange=ismember([allWhiskerData.(recordingName).partID],mFileNum-1);
         allWhiskerData.(recordingName).fid(entryRange,1)=...
             allWhiskerData.(recordingName).fid(entryRange,1)+numPrecedFrame;
     end
-
-    % reorder fids in case there were multiple measurements files for each video chunk
+    
+    % reorder frame ids in case there were multiple measurements files for each video chunk
     [~, sortFrames]=sort([allWhiskerData.(recordingName).fid]);
     dataFields=fieldnames(allWhiskerData.(recordingName));
     for datafieldNum=1:numel(dataFields)

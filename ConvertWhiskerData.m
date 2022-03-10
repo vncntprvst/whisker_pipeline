@@ -28,13 +28,15 @@ videoSyncFiles=vertcat(videoSyncFiles{~cellfun('isempty',videoSyncFiles)});
 videoSyncFiles=videoSyncFiles(~cellfun(@(flnm) contains(flnm,{'Analysis';'vSyncFix'}),...
     {videoSyncFiles.folder}));
 
+whiskerpad = jsondecode(fileread(fullfile(cd,'WhiskerTracking','whiskerpad.json')));
+
 %% Convert data
 for fileNum=1:numFiles
     clear whiskers wtData whiskingPhase whiskingAngle whiskingVelocity
-    whiskers = struct('angle_raw',[],'angle',[],'timestamp',[],...
-        'folX',[],'folY',[],'tipX',[],'tipY',[],'faceX',[],'faceY',[],...
-    'curvature',[],'phase',[],'freq',[],'amplitude',[],...
-    'setPoint',[],'angle_BP',[],'velocity',[],'WP_Data',[]);
+%     whiskers = struct('angle_raw',[],'angle',[],'timestamp',[],...
+%         'folX',[],'folY',[],'tipX',[],'tipY',[],'faceX',[],'faceY',[],...
+%     'curvature',[],'phase',[],'freq',[],'amplitude',[],...
+%     'setPoint',[],'angle_BP',[],'velocity',[],'WP_Data',[]);
     if nargin == 0
         wtData=load(fullfile(whiskerDataFiles(fileNum).folder,whiskerDataFiles(fileNum).name));
     else
@@ -78,10 +80,9 @@ for fileNum=1:numFiles
         end
         
         %ID whiskers to isolate data for one whisker
-        [keepWhiskerIDs,bestWhisker]=FindBestWhisker(wtData,'left');
-        
-        for whiskNum=1:numel(keepWhiskerIDs)
-            whiskers(whiskNum).WP_Data=wtData(wtData.wid==keepWhiskerIDs(whiskNum),:);
+        whiskers=FindBestWhisker(wtData,whiskerpad,'both');
+        for whiskNum=1:numel([whiskers.whiskerIDs])
+            whiskers(whiskNum).WP_Data=wtData(wtData.wid==whiskers(whiskNum).whiskerIDs,:);
             frameIdx=whiskers(whiskNum).WP_Data.fid+1; %frames are zero-indexed
             
 %             whiskers(whiskNum).angle=whiskers(whiskNum).WP_Data.angle;
@@ -157,8 +158,7 @@ for fileNum=1:numFiles
         %% export data
         exportFileName=regexp(videoSyncFiles(compIndex).name,'\S+(?=_vSyncTTLs)','match','once');
         fullExportFileName=fullfile(videoSyncFiles(compIndex).folder,[exportFileName '_wMeasurements.mat']);
-        save(fullExportFileName,'whiskers','keepWhiskerIDs','bestWhisker','wtData',...
-            'syncTTLs','samplingRate','fileName');
+        save(fullExportFileName,'whiskers','wtData','syncTTLs','samplingRate','fileName');
 %         RemoteSync([exportFileName '_wMeasurements.mat'],replace(videoSyncFiles(compIndex).folder,'SpikeSorting','Analysis'),...
 %             videoSyncFiles(compIndex).folder,[],'Sync_ToServer_SpikeSorting')% work on this 
         % also save the original files' location

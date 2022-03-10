@@ -1,82 +1,112 @@
-function wData=FixWhiskerID(wData)
+function wData=FixWhiskerID(wData,whiskerpad)
 
-% Compute centroids 
-% simple version on measurements with follicles and tips 
+% get most typical whisker id
+wLabels=double([wData.label]); wIDs=double([wData.wid]);
+wLabels=wLabels(wLabels>=0); wIDs=wIDs(wIDs>=0);
+[wFreq,uniqueWIDs]=hist(wIDs,unique(wIDs));
+ufIds=unique([wData.fid]);
+keepWhiskerID=uniqueWIDs(wFreq/numel(ufIds)>0.3);
 
-% arrayfun(@(wVals) polyshape([wVals.follicle_x, wVals.tip_x],[wVals.follicle_y, wVals.tip_y]), wData);
-
-
-%demux timeseries of whisker ids based on length and follicle
-wIDs=unique([wData([wData.wid]>=0).wid]);
-wFolx=[wData.follicle_x]; wFoly=[wData.follicle_y];
-wIdx=[wData.wid];
-
-% sideIdx=[wData.follicle_x]>[wData.tip_x];
-
-figure; hold on
-for wNum=1:4 %numel(wIDs)
-    wFolxVals=wFolx(wIdx==wIDs(wNum));
-    wFolyVals=wFoly(wIdx==wIDs(wNum));
-    plot(wFolxVals,wFolyVals,'.')
+% find which axis to segregate them
+switch whiskerpad(1).ProtractionDirection
+    case {'downward','upward'}
+        fol_axis='follicle_y';
+    case {'leftward','rightward'}
+        fol_axis='follicle_x';
 end
-legend(num2str(wIDs'))
 
-See ExtractMixedSignalsExample
-% C:\Users\wanglab\Documents\MATLAB\Examples\R2020b\stats\ExtractMixedSignalsExample\ExtractMixedSignalsExample.m
-
-% Compute Euclidian distance
-
-
-
-%% get distance to original cluster
-initCLuster=[[wpMeasurements.follicle_x],...
-    [wpMeasurements.follicle_y],...
-    [wpMeasurements.tip_x],...
-    [wpMeasurements.tip_y]];
-unsortedObs=initCLuster(wIdx==-1,:);
-[~,ic_comps] = pca(zscore(initCLuster));
-[~,uo_comps] = pca(zscore(unsortedObs));
-mDist2Clus=nan(size(uo_comps,1),3);
-for wNum=0:2
-    %     mDist=squareform(pdist([mean(initCLuster(wIdx==wNum,:));unsortedObs]));
-    %     mDist2Clus(:,wNum+1)=mDist(2:end,1);
-    mDist=pdist([mean(ic_comps(wIdx==wNum,:));uo_comps]); %squareform
-    mDist2Clus(:,wNum+1)=mDist(1:size(uo_comps,1)); %mDist(2:end,1);
+% decide if re-order is needed
+meanWPos=nan(numel(keepWhiskerID),1);
+for wNum=1:numel(keepWhiskerID)
+    meanWPos(wNum)=nanmean([wData([wData.label]==keepWhiskerID(wNum)).(fol_axis)]); %,...nanstd([wData([wData.label]==wNum).follicle_y])]
 end
-clusAlloc=mod(find((mDist2Clus==min(mDist2Clus,[],2))'),3)';
-clusAlloc(clusAlloc==0)=3; clusAlloc=clusAlloc-1;
+[~,currOrder]=sort(meanWPos);
 
-% plot outcome
-%     figure; hold on
-%     image(vidFrame); set(gca, 'YDir', 'reverse');
-%     for wNum=0:2
-%         plot([unsortedObs(clusAlloc==wNum,1)],[unsortedObs(clusAlloc==wNum,2)],'.')
-%         plot([unsortedObs(clusAlloc==wNum,3)],[unsortedObs(clusAlloc==wNum,4)],'x')
+orderingDir='ascend';
+switch whiskerpad(1).ProtractionDirection
+    case {'downward','leftward'}
+        %         intended order: min first
+        if all(diff(currOrder)<0); orderingDir='descend'; end
+    case {'upward','rightward'}
+        if all(diff(currOrder)>0); orderingDir='descend'; end
+end
+
+% add whiskers from wid to label, for frames where those frequent whiskers are missing
+allFIDs=[wData.fid]';
+frameBlockSize=[diff([1;find(diff(allFIDs))+1]);numel(allFIDs)-find(diff(allFIDs),1,'last')];
+allWLabels=mat2cell([wData.label]',frameBlockSize);
+allWID=mat2cell([wData.wid]',frameBlockSize);
+orderingVals=mat2cell([wData.(fol_axis)]',frameBlockSize);
+
+parfor fID=1:numel(ufIds)
+    if any(~ismember(keepWhiskerID,allWLabels{fID}))
+        % get labels from wid
+        keepFWIDidx=ismember(allWID{fID},keepWhiskerID) |...
+                    ismember(allWLabels{fID},keepWhiskerID);
+        % sort them
+        fWOrderVals=orderingVals{fID}(keepFWIDidx);
+        [~,fWOrder]=sort(fWOrderVals,orderingDir);
+        % make sure not to keep more values than max number of whiskers        
+        if numel(fWOrder)>numel(keepWhiskerID)
+            applyID=[keepWhiskerID, ones(1, numel(fWOrder)-numel(keepWhiskerID))*-1];
+        else
+            applyID=keepWhiskerID;
+        end
+        % assign values
+        allWLabels{fID}(keepFWIDidx)=applyID(fWOrder);
+    end
+end
+% assign label values
+newLabels=num2cell(vertcat(allWLabels{:}));
+[wData.label]=newLabels{:};
+
+%% find doublets/duplicates
+% % the operation above sometimes creates duplicate labels
+% allWLabels=mat2cell([wData.label]',frameBlockSize);
+% for fID=1:numel(ufIds)
+%     if numel(unique(allWLabels{fID}))<numel(allWLabels{fID})
+%         % get labels
+%         keepFWIDidx=ismember(allWLabels{fID},keepWhiskerID);
+%         % sort them
+%         fWOrderVals=orderingVals{fID}(keepFWIDidx);   
+%         [~,fWOrder]=sort(fWOrderVals,orderingDir);
+%         % assign values
+%         allWLabels{fID}(keepFWIDidx)=keepWhiskerID(fWOrder);
 %     end
+% end
+% % assign label values
+% newLabels=num2cell(vertcat(allWLabels{:}));
+% [wData.label]=newLabels{:};
 
-%% allocate to frames that need it
-unAllocObs=find(wIdx==-1);
-wpIdx=find(~blacklist);
-wData.widfixed=wData.wid;
-for wNum=0:2
-    fidList=unAllocObs(clusAlloc==wNum);
-    nonRedundent_fidList=~ismember(wpMeasurements.fid(fidList),...
-        wData.fid(wpIdx(wIdx==wNum)));
-    fidList=fidList(nonRedundent_fidList);
-    wData.label(wpIdx(fidList))=wNum;
-    wData.widfixed(wpIdx(fidList))=wNum;
+%% re-order based on follicle location
+% get values
+folPos=[wData.(fol_axis)];
+wFPos=nan(numel(ufIds),numel(keepWhiskerID));
+for wNum=1:numel(keepWhiskerID)
+    try
+    wFPos(ismember(ufIds,[wData([wData.label]==keepWhiskerID(wNum)).fid]),wNum)=...
+        folPos([wData.label]==keepWhiskerID(wNum));
+    catch
+        %doublet
+        keepWhiskerID;
+    end
 end
-
-% reset frequency
-[wFreq,uniqueWIDs]=hist(wData.widfixed,unique(wData.widfixed));
-keepWhiskerIDs=uniqueWIDs(wFreq./numel(unique(wData.fid(wpIdx)))>0.5);
-
-
-if ~isfield(wData,'widfixed')
-    wData.widfixed=wData.wid;
-    lwData.widfixed=lwData.wid;
+wFPos= fillmissing(wFPos,'linear');
+% sort and allocate
+[~,sortIDx]=sort(wFPos,2);
+reIdxLabels=keepWhiskerID(sortIDx);
+[reIwLabels,reIwIdx]=deal(cell(numel(keepWhiskerID),1));
+for wNum=1:numel(keepWhiskerID)
+    reIwLabels{wNum}=num2cell(reIdxLabels(ismember(ufIds,[wData([wData.label]==...
+        keepWhiskerID(wNum)).fid]),wNum));
+    reIwIdx{wNum}=find([wData.label]==keepWhiskerID(wNum));
 end
-
+reIwLabels=vertcat(reIwLabels{:}); reIwIdx=[reIwIdx{:}];
+try
+[wData(reIwIdx).label]=reIwLabels{:};
+catch
+    reIwLabels;
+end
 
 %% Figures
 if false
