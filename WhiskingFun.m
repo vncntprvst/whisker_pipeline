@@ -1,7 +1,7 @@
 classdef WhiskingFun
     methods(Static)
         
-        %% delineate whisker pad region on first video frame
+        %% Delineate whisker pad region on first video frame
         function [whiskingParams,splitUp]=DrawWhiskerPadROI(vid)
             vidFrame = readFrame(vid);
             figure; image(vidFrame);
@@ -28,7 +28,7 @@ classdef WhiskingFun
             end
         end
         
-        %% get whisker pad coordinates
+        %% Get whisker pad coordinates
         function [wpCoordinates,wpLocation,wpRelativeLocation,sideBrightness] =...
                 GetWhiskerPadCoord(topviewImage)
             figure('Name','Draw rectangle around whisker pad','NumberTitle','off'); image(topviewImage);
@@ -68,7 +68,7 @@ classdef WhiskingFun
             close(gcf);
         end
         
-        %% get whisker pad parameters
+        %% Get whisker pad parameters
         function [faceSideInImage,protractionDirection,linkingDirection]=...
                 GetWhiskerPadParams(wpCoordinates,wpRelativeLocation,sideBrightness)
             switch pdist(wpCoordinates([1,2],:))/pdist(wpCoordinates([2,3],:)) < 1
@@ -164,7 +164,7 @@ classdef WhiskingFun
 %                 kmeans(wLengths,2,'Distance','sqEuclidean');
             
             [cluster_ids,cluster_centroids,~,cluster_distances] = ...
-                kmeans([whiskerData.length;whiskerData.follicle_x;whiskerData.follicle_y]',...
+                kmeans([whiskerData.length]',... whiskerData.follicle_x;whiskerData.follicle_y
                 2,'Distance','sqEuclidean');
             wClusterID=find(cluster_centroids(:,1)==max(cluster_centroids(:,1)));
             wCluster=cluster_ids==wClusterID;      
@@ -216,6 +216,19 @@ classdef WhiskingFun
             end
         end
         
+        %% Adjust whisker angle to match convention
+        % See Towal et al 2011 https://journals.plos.org/ploscompbiol/article/figure?id=10.1371/journal.pcbi.1001120.g007
+        function angles=AngleConvention(angles, whiskerpad)
+            % check for horizontal face position 
+            switch whiskerpad.FaceSideInImage
+                case 'right' 
+                    angles=-angles; %invert sign
+            end
+            switch whiskerpad.ProtractionDirection
+                case 'downward'
+                    angles=(180-angles); % flip 0 to 180 coordinates
+            end
+        end
         %% ResampleBehavData
         %%%%%%%%%%%%%%%%%%%%
         function whiskerTrace_ms=ResampleBehavData(whiskerTrackingData,vidTimes,samplingRate)

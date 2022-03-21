@@ -6,7 +6,10 @@ wLabels=wLabels(wLabels>=0); wIDs=wIDs(wIDs>=0);
 [wFreq,uniqueWIDs]=hist(wIDs,unique(wIDs));
 ufIds=unique([wData.fid]);
 keepWhiskerID=uniqueWIDs(wFreq/numel(ufIds)>0.3);
-
+if isempty(keepWhiskerID)
+    disp('Poor tracking. Whisker IDs can''t be fixed')
+    return
+end
 % find which axis to segregate them
 switch whiskerpad(1).ProtractionDirection
     case {'downward','upward'}
@@ -24,10 +27,10 @@ end
 
 orderingDir='ascend';
 switch whiskerpad(1).ProtractionDirection
-    case {'downward','leftward'}
-        %         intended order: min first
+    case {'upward','leftward'}
+        % intended order: min first
         if all(diff(currOrder)<0); orderingDir='descend'; end
-    case {'upward','rightward'}
+    case {'downward','rightward'}
         if all(diff(currOrder)>0); orderingDir='descend'; end
 end
 
@@ -38,7 +41,7 @@ allWLabels=mat2cell([wData.label]',frameBlockSize);
 allWID=mat2cell([wData.wid]',frameBlockSize);
 orderingVals=mat2cell([wData.(fol_axis)]',frameBlockSize);
 
-parfor fID=1:numel(ufIds)
+parfor fID=1:numel(ufIds) %fID=1:37 %250 values in vIRt57_0216_5732
     if any(~ismember(keepWhiskerID,allWLabels{fID}))
         % get labels from wid
         keepFWIDidx=ismember(allWID{fID},keepWhiskerID) |...
@@ -56,40 +59,18 @@ parfor fID=1:numel(ufIds)
         allWLabels{fID}(keepFWIDidx)=applyID(fWOrder);
     end
 end
+
 % assign label values
 newLabels=num2cell(vertcat(allWLabels{:}));
 [wData.label]=newLabels{:};
-
-%% find doublets/duplicates
-% % the operation above sometimes creates duplicate labels
-% allWLabels=mat2cell([wData.label]',frameBlockSize);
-% for fID=1:numel(ufIds)
-%     if numel(unique(allWLabels{fID}))<numel(allWLabels{fID})
-%         % get labels
-%         keepFWIDidx=ismember(allWLabels{fID},keepWhiskerID);
-%         % sort them
-%         fWOrderVals=orderingVals{fID}(keepFWIDidx);   
-%         [~,fWOrder]=sort(fWOrderVals,orderingDir);
-%         % assign values
-%         allWLabels{fID}(keepFWIDidx)=keepWhiskerID(fWOrder);
-%     end
-% end
-% % assign label values
-% newLabels=num2cell(vertcat(allWLabels{:}));
-% [wData.label]=newLabels{:};
 
 %% re-order based on follicle location
 % get values
 folPos=[wData.(fol_axis)];
 wFPos=nan(numel(ufIds),numel(keepWhiskerID));
 for wNum=1:numel(keepWhiskerID)
-    try
     wFPos(ismember(ufIds,[wData([wData.label]==keepWhiskerID(wNum)).fid]),wNum)=...
         folPos([wData.label]==keepWhiskerID(wNum));
-    catch
-        %doublet
-        keepWhiskerID;
-    end
 end
 wFPos= fillmissing(wFPos,'linear');
 % sort and allocate
@@ -107,6 +88,13 @@ try
 catch
     reIwLabels;
 end
+
+%swap id and labels
+labels=num2cell([wData.label]);
+wIDs=num2cell([wData.wid]);
+[wData.label]=wIDs{:};
+[wData.wid]=labels{:};
+
 
 %% Figures
 if false

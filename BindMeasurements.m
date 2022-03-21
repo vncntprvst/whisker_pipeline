@@ -79,7 +79,7 @@ for fileNum=1:numel(videoFiles)
     wmFiles=wmFiles(reIndex,:);
     widRaiseIdx=find(ismember(reIndex,find(sideIndex==1)));
     
-    % Concatenate whisker data from all chunks
+    %% Concatenate whisker data from all video chunks
     numFrames=nan(numel(wmFiles),1);
     for mFileNum=1:numel(wmFiles)
         mfName=wmFiles(mFileNum).name;
@@ -87,7 +87,7 @@ for fileNum=1:numel(videoFiles)
         %         whiskerVals=Whisker.LoadWhiskers(strrep(mfName,'.measurements','.whiskers'));
         %         overlap_whiskers_on_video(strrep(mfName,'.measurements',''),1)
         
-        % remove whiskers outside whiskerpad area
+        % %% remove whiskers outside whiskerpad area
         %         if isfield(whiskerpad,'ImageDimensions')
         % %             mFileNum
         %             [whiskerData,blacklist]=WhiskingFun.RestrictToWhiskerPad(whiskerData,...
@@ -100,9 +100,10 @@ for fileNum=1:numel(videoFiles)
         % -> apply to .whisker data
         %         whiskerVals=whiskerVals(~blacklist,:);
         
+        %% remove non-whisker objects
         wCluster = WhiskingFun.ClusterWhiskers(whiskerData);
         
-        % remove non-whisker objects
+        
         whiskerData=whiskerData(wCluster);
         %         labelIdx=[whiskerData.label]>=0;
         %         whiskerData = whiskerData(labelIdx,:);
@@ -111,10 +112,10 @@ for fileNum=1:numel(videoFiles)
         
         if isempty(whiskerData); continue; end
         
-        % Fix IDs
+        %% Fix IDs
         whiskerData=FixWhiskerID(whiskerData,whiskerpad);
         
-        % Adjust wisker ID if from the contralateral side
+        %% Adjust wisker ID if from the contralateral side
         if any(ismember(widRaiseIdx,mFileNum))
             if mFileNum==widRaiseIdx(1)
                 % find how much to increase the whisker id number
@@ -125,9 +126,13 @@ for fileNum=1:numel(videoFiles)
             [whiskerData.wid] = widVals{:};
         end
         
-        % Add whiskerpad information 
+        %% Add whiskerpad information 
         whiskerPadIdx=1; if any(ismember(widRaiseIdx,mFileNum)); whiskerPadIdx=2; end
-        [whiskerData.whiskerPadIdx]=deal(whiskerPadIdx);           
+        [whiskerData.whiskerPadIdx]=deal(whiskerPadIdx);  
+        
+        %% Adjust whisker angle to match convention
+        angles=WhiskingFun.AngleConvention([whiskerData.angle], whiskerpad(whiskerPadIdx));
+        angles=num2cell(angles); [whiskerData.angle]=angles{:};
         
         % save data to allWhiskerData structure
         currentDim=numel(allWhiskerData.(recordingName).partID);

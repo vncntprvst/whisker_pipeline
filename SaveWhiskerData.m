@@ -23,7 +23,7 @@ catch
 end
 
 for fileNum=1:numel(videoFiles)
-    % get measurments
+    % get measurements
     try
         cd(fullfile(sessionDir,'WhiskerTracking'))
         whiskerData=BindMeasurements(videoFiles(fileNum),whiskerMeasurementFiles,false);
