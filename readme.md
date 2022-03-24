@@ -4,12 +4,14 @@
 
 ### Dependencies
 **Whisk**
-See [instructions](https://wiki.janelia.org/wiki/display/MyersLab/Whisker+Tracking) to download and install. 
+1. See [instructions](https://wiki.janelia.org/wiki/display/MyersLab/Whisker+Tracking) to download and install. 
+2. Add the {WhiskerTracking}/bin directory to your environment's path
+2. Add {WhiskerTracking}/matlab to your Matlab path
 
 **Bonsai**
 1. Download from bonsai-rx.org. 
-2. Install video packages. 
-3. Add Bonsai to the path (recommended but optional)
+2. Install starter and video packages. 
+3. Add Bonsai to your environment's path (recommended but optional)
 
 **Python** 
 1. Install Python (e.g., with Anaconda). 

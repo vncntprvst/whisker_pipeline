@@ -168,9 +168,10 @@ end
 % cd ..
 
 %% Perform whisker detection
-%Command line references: http://whiskertracking.janelia.org/wiki/display/MyersLab/Whisker+Tracking+Command+Line+Reference
-% list files
-% cd([sessionDir filesep 'WhiskerTracking'])
+% if starting from this steps, open WhiskerTracking folder, then set
+% sessionDir=fileparts(cd);
+% whiskingParams = jsondecode(fileread(fullfile(cd,'whiskerpad.json')));
+% if numel(whiskingParams)>1; splitUp='Yes'; end
 ext = '.mp4';
 ignoreExt = '.measurements';
 for wpNum=1:numel(whiskingParams)
@@ -204,11 +205,12 @@ for wpNum=1:numel(whiskingParams)
     else
         px2mm = 0.05; %normal close up view of one side of the head
     end
-    Whisker.makeAllDirectory_Tracking([sessionDir filesep 'WhiskerTracking'],'ext',ext,...
+    TraceMeasureClassify(fullfile(sessionDir, 'WhiskerTracking'),'ext',ext,...
         'include_files',include_files,'side',whiskingParams(wpNum).FaceSideInImage,...
         'face_x_y',whiskingParams(wpNum).Location,'px2mm',px2mm,'num_whiskers',num_whiskers);
 
 end
+
 % sanity check: single file
 % fileNum=1;
 % fileName=include_files{fileNum};
