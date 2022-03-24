@@ -17,7 +17,6 @@ p.parse(d,varargin{:});
 disp 'List of all arguments:'
 disp(p.Results)
 
-
 if ~strcmp(d(end), filesep)
     d = [d filesep];
 end

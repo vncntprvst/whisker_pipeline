@@ -199,12 +199,17 @@ for wpNum=1:numel(whiskingParams)
     % initialize parameters
     num_whiskers = 3; %-1 %10;
 
-    % process all files
+    % set pixel dimension
     if numel(whiskingParams)>1 %large FOV covering both sides of the head
         px2mm = 0.1;
     else
         px2mm = 0.05; %normal close up view of one side of the head
     end
+
+    % set WP location horizontal (may be vertical array if loaded from file)
+    if size(whiskingParams(wpNum).Location,1)>1; whiskingParams(wpNum).Location=transpose(whiskingParams(wpNum).Location); end
+    
+    % process all files
     TraceMeasureClassify(fullfile(sessionDir, 'WhiskerTracking'),'ext',ext,...
         'include_files',include_files,'side',whiskingParams(wpNum).FaceSideInImage,...
         'face_x_y',whiskingParams(wpNum).Location,'px2mm',px2mm,'num_whiskers',num_whiskers);
@@ -370,6 +375,7 @@ timestampFiles=vertcat(timestampFiles{~cellfun('isempty',timestampFiles)});
 timestampFiles=timestampFiles(cellfun(@(flnm) contains(flnm,{'_VideoFrameTimes','vSync'}),...
     {timestampFiles.name}));
 if isempty(timestampFiles) %No TTL based timestamps, or not exported yet.
+    dirListing=dir(sessionDir);
     timestampFilesIndex=cellfun(@(fileName) contains(fileName,{'HSCamFrameTime.csv'; ...
         'HSCam.csv';'HSCam_Parsed.csv';'tsbackup'}),{dirListing.name},'UniformOutput', true);
     timestampFiles=dirListing(timestampFilesIndex);
