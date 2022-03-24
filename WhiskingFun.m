@@ -3,7 +3,7 @@ classdef WhiskingFun
         
         %% Delineate whisker pad region on first video frame
         function [whiskingParams,splitUp]=DrawWhiskerPadROI(vid)
-            vidFrame = readFrame(vid);
+            vidFrame = readFrame(vid); vidFrame=rgb2gray(vidFrame);
             figure; image(vidFrame);
             set(gcf, 'position', [450   571   560   420])
 

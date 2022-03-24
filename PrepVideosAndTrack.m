@@ -26,126 +26,129 @@ frameRate=1/frameTimeInterval;
 FRratio=frameRate/firstVideo.FrameRate;
 
 %% Cut videos in 5 seconds chunks
+% use Bonsai if installed
+if ~system('Bonsai --noeditor') % found in the path
+    BonsaiPath=''; % no need to set the path then
+else % assume default install location on Windows
+    BonsaiPath=['C:\Users\' lower(getenv('username')) '\AppData\Local\Bonsai\'];
+    if ~exist(BonsaiPath,'dir') %no luck finding it
+        clearvars BonsaiPath
+    end
+end
+
 for fileNum=1:numel(videoFiles)
     videoFileName=videoFiles(fileNum).name;
     frameSplitIndexFileName = [videoFileName(1:end-4) '_VideoFrameSplitIndex.csv'];
     videoDirectory=[sessionDir filesep];
-    
-    %% use openCV through python (works but too slow, because Matlab can't serialize Python objects in parfor)
-    
-    %     fps=int32(videoData.get(py.cv2.CAP_PROP_FPS));
-    % %     videoData.get(py.cv2.CAP_PROP_FRAME_HEIGHT)
-    %     codecType=int32(videoData.get(py.cv2.CAP_PROP_FOURCC));
-    % %     py.cv2.VideoWriter_fourcc('a','0','0','0') %a\0\0\0
-    %     fourCC=877677894; %(py.cv2.VideoWriter_fourcc('F','M','P','4'));
-    %     apiPreference=int32(videoData.get(py.cv2.CAP_FFMPEG));
-    % %     apiPreference 0 (cv2.CAP_ANY)  1900 (cv2.CAP_FFMPEG)
-    % %     videoData.release()
-    % %     foo='D:\Vincent\vIRt42\vIRt42_1016\WhiskerTracking\vIRt42_1016_4800_10Hz_10ms_10mW_20191016-121733_HSCam_Trial16.avi'
-    % %     videoCap = py.cv2.VideoCapture(foo)
-    %     videoOutDirectory=['D:\Vincent\vIRt42\vIRt42_1016\WhiskerTracking\'];
-    %     for chunkNum=1:size(chunkIndex,1)
-    %         videoOutFileName=[videoFileName(1:end-4) '_Trial' num2str(chunkNum) '.mp4'];
-    %         videoOut=py.cv2.VideoWriter;
-    % %         writer = py.cv2.VideoWriter
-    % %         videoOut.open('test1.avi',int32(1900),int32(fourCC),25,py.tuple({int32(640),int32(480)}))
-    % %         videoOut.open(fullfile(videoOutDirectory,videoOutFileName),apiPreference,codecType,fps,py.tuple({int32(640),int32(480)}))
-    %         videoOut.open(fullfile(videoOutDirectory,videoOutFileName),...
-    %             int32(1900),int32(fourCC),fps,py.tuple({int32(640),int32(480)}));
-    %         %,int32([640,480])); %
-    % %             "FMP4", 500,
-    %         for frameNum=(chunkIndex(chunkNum,1):chunkIndex(chunkNum,2)-1)-1
-    %             videoData.set(py.cv2.CAP_PROP_POS_FRAMES,frameNum);
-    %             frameData=videoData.read();
-    %             videoOut.write(frameData{2})
-    %         end
-    % %     cv2.imwrite(w_path,frame)
-    %         videoOut.release()
-    %     end
-    %     videoData.release()
-    
-    %% use Bonsai:
-    BonsaiPath='C:\Users\wanglab\AppData\Local\Bonsai\';
-    BonsaiWFPath='V:\Code\BonsaiWorkFlows\VideoOp\';
-     %'D:\Vincent\vIRt42\vIRt42_1016\';
-    % C:\Users\wanglab\AppData\Local\Bonsai\Bonsai64.exe V:\Code\BonsaiWorkFlows\SplitVideoByFrameIndex.bonsai --start -p:Path.CSVFileName=VideoFrameSplitIndex.csv -p:Path.Directory=D:\Vincent\vIRt42\vIRt42_1016\ -p:Path.VideoFileName=vIRt42_1016_4800_10Hz_10ms_10mW_20191016-121733_HSCam.avi --start --noeditor
-    switch splitUp
-        case 'No'
-            sysCall=[BonsaiPath 'Bonsai64.exe ' BonsaiWFPath 'SplitVideoByFrameIndex.bonsai'...
-                ' -p:Path.CSVFileName=' frameSplitIndexFileName...
-                ' -p:Path.Directory=' videoDirectory...
-                ' -p:Path.VideoFileName=' videoFileName...
-                ' --start --noeditor'];    
-            disp(sysCall); system(sysCall);
-        case 'Yes'
-            sysCall=[BonsaiPath 'Bonsai64.exe ' BonsaiWFPath 'SplitVideoByFrameIndex_SplitLeft.bonsai'...
-                ' -p:Path.CSVFileName=' frameSplitIndexFileName...
-                ' -p:Path.Directory=' videoDirectory...
-                ' -p:Path.VideoFileName=' videoFileName...
-                ' --start --noeditor'];
-            disp(sysCall); system(sysCall);
-            sysCall=[BonsaiPath 'Bonsai64.exe ' BonsaiWFPath 'SplitVideoByFrameIndex_SplitRight.bonsai'...
-                ' -p:Path.CSVFileName=' frameSplitIndexFileName...
-                ' -p:Path.Directory=' videoDirectory...
-                ' -p:Path.VideoFileName=' videoFileName...
-                ' --start --noeditor'];
-            disp(sysCall); system(sysCall);
-    end
-    
-%             % check frame number
-%         vf=[outputDir filesep 'vIRt50_1021_4736_20201021-194603_HSCam_Trial0.avi'];
-%         videoData = py.cv2.VideoCapture(vf);
-%         chunkFrameNum=videoData.get(py.cv2.CAP_PROP_FRAME_COUNT);
 
-    %% use ffmpeg + [optional] Split video in two vertically
-%     splitIndex=load(frameSplitIndexFileName);
-%     splitIndex=splitIndex+1; % 1 index
-%     outputDir = fullfile(videoDirectory, 'WhiskerTracking');
-%     
-%     for chunkNum=1:size(splitIndex,1)
-%         sysCall=['ffmpeg -y -r ' num2str(frameRate) ' -i ' videoFileName ' -ss ' ...
-%             num2str(floor(frameTimes(splitIndex(chunkNum,1))*FRratio)) ' -to '...
-%             num2str(floor(frameTimes(splitIndex(chunkNum,2)+1)*FRratio)) ...
-%             ' -c:v copy -c:a copy -r ' num2str(frameRate) ' '...
-%             outputDir filesep videoFileName(1:end-4) '_Trial' ...
-%             num2str(chunkNum-1) '.mp4' ' -async 1 ' ...
-%             ' -hide_banner -loglevel panic'];
-%         disp(sysCall); system(sysCall);
-%         
-%         
-%         % check frame number
-%         vf=[outputDir filesep videoFileName(1:end-4) '_Trial' num2str(chunkNum-1) '.mp4'];
-%         videoData = py.cv2.VideoCapture(vf);
-%         chunkFrameNum=videoData.get(py.cv2.CAP_PROP_FRAME_COUNT);
-%         
-%         switch splitUp
-%             case 'No'
-%             case 'Yes'
-%                 outF=[outputDir filesep videoFileName(1:end-4) '_Trial' num2str(chunkNum-1) '.mp4'];
-%                 sysCall=['ffmpeg -y -i ' outF ...
-%                     ' -vf crop=' num2str(midWidth) ':' num2str(size(vidFrame,1)) ':0:0 ' ...
-%                     '-c:a copy '...
-%                     outputDir filesep videoFileName(1:end-4) '_LeftW_Trial' ...
-%                     num2str(chunkNum-1) '.mp4'];
-%                 disp(sysCall); system(sysCall);
-%                 
-%                 sysCall=['ffmpeg -y -i ' outF ...
-%                     ' -vf crop=' num2str(midWidth) ':' num2str(size(vidFrame,1))...
-%                     ':' num2str(midWidth) ':0 ' ...
-%                     '-c:a copy '...
-%                     outputDir filesep videoFileName(1:end-4) '_RightW_Trial' ...
-%                     num2str(chunkNum-1) '.mp4'];
-%                 disp(sysCall); system(sysCall);
-%                 
-%                 % check frame number
-%                 vf=[outputDir filesep videoFileName(1:end-4) '_Right_Trial' num2str(chunkNum-1) '.mp4'];
-%                 videoData = py.cv2.VideoCapture(outF);
-%                 splitChunkFrameNum=videoData.get(py.cv2.CAP_PROP_FRAME_COUNT)
-%                 if chunkFrameNum~=splitChunkFrameNum
-%                     disp('inconsistant frame number after split')
-%                 end
-%         end
-%     end
+    if exist('BonsaiPath','var')
+        BonsaiWFPath=fullfile(fileparts(mfilename('fullpath')),'VideoOp');
+        callFlags= [' -p:Path.CSVFileName=' frameSplitIndexFileName...
+                    ' -p:Path.Directory=' videoDirectory...
+                    ' -p:Path.VideoFileName=' videoFileName...
+                    ' --start --noeditor'];
+        switch splitUp
+            case 'No'
+                BonsaiWFPath=fullfile(BonsaiWFPath, 'SplitVideoByFrameIndex.bonsai');
+                sysCall=[BonsaiPath 'Bonsai ' BonsaiWFPath callFlags];
+                disp(sysCall); [~,~]= system(sysCall);
+            case 'Yes'
+                BonsaiWFPath=fullfile(BonsaiWFPath, 'SplitVideoByFrameIndex_SplitLeft.bonsai');
+                sysCall=[BonsaiPath 'Bonsai ' BonsaiWFPath callFlags];
+                disp(sysCall); [~,~]= system(sysCall);
+                BonsaiWFPath=fullfile(BonsaiWFPath, 'SplitVideoByFrameIndex_SplitRight.bonsai');
+                sysCall=[BonsaiPath 'Bonsai ' BonsaiWFPath callFlags];
+                disp(sysCall); [~,~]= system(sysCall);
+        end
+    else
+        try
+            %% then use openCV through python (works but too slow, because Matlab can't serialize Python objects in parfor)
+            fps=int32(videoData.get(py.cv2.CAP_PROP_FPS));
+            %     videoData.get(py.cv2.CAP_PROP_FRAME_HEIGHT)
+            codecType=int32(videoData.get(py.cv2.CAP_PROP_FOURCC));
+            %     py.cv2.VideoWriter_fourcc('a','0','0','0') %a\0\0\0
+            fourCC=877677894; %(py.cv2.VideoWriter_fourcc('F','M','P','4'));
+            apiPreference=int32(videoData.get(py.cv2.CAP_FFMPEG));
+            %     apiPreference 0 (cv2.CAP_ANY)  1900 (cv2.CAP_FFMPEG)
+            %     videoData.release()
+            %     videoCap = py.cv2.VideoCapture(foo)
+            %         videoOutDirectory=''; fix this
+            for chunkNum=1:size(chunkIndex,1)
+                videoOutFileName=[videoFileName(1:end-4) '_Trial' num2str(chunkNum) '.mp4'];
+                videoOut=py.cv2.VideoWriter;
+                %         writer = py.cv2.VideoWriter
+                %         videoOut.open('test1.avi',int32(1900),int32(fourCC),25,py.tuple({int32(640),int32(480)}))
+                %         videoOut.open(fullfile(videoOutDirectory,videoOutFileName),apiPreference,codecType,fps,py.tuple({int32(640),int32(480)}))
+                videoOut.open(fullfile(videoOutDirectory,videoOutFileName),...
+                    int32(1900),int32(fourCC),fps,py.tuple({int32(640),int32(480)}));
+                %,int32([640,480])); %
+                %             "FMP4", 500,
+                for frameNum=(chunkIndex(chunkNum,1):chunkIndex(chunkNum,2)-1)-1
+                    videoData.set(py.cv2.CAP_PROP_POS_FRAMES,frameNum);
+                    frameData=videoData.read();
+                    videoOut.write(frameData{2})
+                end
+                %     cv2.imwrite(w_path,frame)
+                videoOut.release()
+            end
+            videoData.release()
+        catch
+            %% use ffmpeg + [optional] Split video in two vertically
+            splitIndex=load(frameSplitIndexFileName);
+            splitIndex=splitIndex+1; % 1 index
+            outputDir = fullfile(videoDirectory, 'WhiskerTracking');
+
+            for chunkNum=1:size(splitIndex,1)
+                sysCall=['ffmpeg -y -r ' num2str(frameRate) ' -i ' videoFileName ' -ss ' ...
+                    num2str(floor(frameTimes(splitIndex(chunkNum,1))*FRratio)) ' -to '...
+                    num2str(floor(frameTimes(splitIndex(chunkNum,2)+1)*FRratio)) ...
+                    ' -c:v copy -c:a copy -r ' num2str(frameRate) ' '...
+                    outputDir filesep videoFileName(1:end-4) '_Trial' ...
+                    num2str(chunkNum-1) '.mp4' ' -async 1 ' ...
+                    ' -hide_banner -loglevel panic'];
+                disp(sysCall); system(sysCall);
+
+
+                % check frame number
+                vf=[outputDir filesep videoFileName(1:end-4) '_Trial' num2str(chunkNum-1) '.mp4'];
+                videoData = py.cv2.VideoCapture(vf);
+                chunkFrameNum=videoData.get(py.cv2.CAP_PROP_FRAME_COUNT);
+
+                switch splitUp
+                    case 'No'
+                    case 'Yes'
+                        outF=[outputDir filesep videoFileName(1:end-4) '_Trial' num2str(chunkNum-1) '.mp4'];
+                        sysCall=['ffmpeg -y -i ' outF ...
+                            ' -vf crop=' num2str(midWidth) ':' num2str(size(vidFrame,1)) ':0:0 ' ...
+                            '-c:a copy '...
+                            outputDir filesep videoFileName(1:end-4) '_LeftW_Trial' ...
+                            num2str(chunkNum-1) '.mp4'];
+                        disp(sysCall); system(sysCall);
+
+                        sysCall=['ffmpeg -y -i ' outF ...
+                            ' -vf crop=' num2str(midWidth) ':' num2str(size(vidFrame,1))...
+                            ':' num2str(midWidth) ':0 ' ...
+                            '-c:a copy '...
+                            outputDir filesep videoFileName(1:end-4) '_RightW_Trial' ...
+                            num2str(chunkNum-1) '.mp4'];
+                        disp(sysCall); system(sysCall);
+
+                        % check frame number
+                        vf=[outputDir filesep videoFileName(1:end-4) '_Right_Trial' num2str(chunkNum-1) '.mp4'];
+                        videoData = py.cv2.VideoCapture(outF);
+                        splitChunkFrameNum=videoData.get(py.cv2.CAP_PROP_FRAME_COUNT)
+                        if chunkFrameNum~=splitChunkFrameNum
+                            disp('inconsistant frame number after split')
+                        end
+                end
+
+            end
+        end
+    end
+    %             % check frame number
+    %         vf=[outputDir filesep 'vIRt50_1021_4736_20201021-194603_HSCam_Trial0.avi'];
+    %         videoData = py.cv2.VideoCapture(vf);
+    %         chunkFrameNum=videoData.get(py.cv2.CAP_PROP_FRAME_COUNT);
 end
 
 % [optional] If need to convert avi files to mp4
@@ -159,7 +162,7 @@ if ~isempty(aviFiles)
         sysCall=['ffmpeg -i ' aviFiles(fileNum).name ' -vcodec copy ' aviFiles(fileNum).name(1:end-3) 'mp4'];
         disp(sysCall); system(sysCall);
     end
-	delete *.avi
+    delete *.avi
 end
 
 % cd ..
@@ -175,9 +178,9 @@ for wpNum=1:numel(whiskingParams)
         dir([sessionDir filesep 'WhiskerTracking' filesep '*' ext]),'UniformOutput',false);
     % Return list of files that are already tracked
     ignore_files = arrayfun(@(x) x.name(1:(end-length(ignoreExt))),...
-        dir([sessionDir filesep 'WhiskerTracking' filesep '*' ignoreExt]),'UniformOutput',false); 
+        dir([sessionDir filesep 'WhiskerTracking' filesep '*' ignoreExt]),'UniformOutput',false);
     switch splitUp
-        case 'Yes' 
+        case 'Yes'
             switch whiskingParams(wpNum).FaceSideInImage
                 case 'right'
                     keepLabel = 'Left';
@@ -245,15 +248,15 @@ if false
     %     'whiskerpadROI',whiskerPadCoordinates,...
     %     'whiskerLengthThresh',50,...
     %     'silent',true); % caudal or rostral
-    
+
     % Then link
     % ow.LinkWhiskers('Force', true);            % see Guide for the detail about 'Force'
-    
+
     % Additional processing
     % ow.MakeMasks('Force', true);
     % ow.DetectBar('Force', true);
     % ow.DoPhysics('Force', true);
-    
+
     %% Loop through session
     for fileNum=1:numel(include_files)
         fileName=include_files{fileNum};
@@ -271,14 +274,14 @@ if false
             'whiskerpadROI',whiskerPadCoordinates,...
             'whiskerLengthThresh',50,...
             'silent',true); % caudal or rostral
-        
+
         % Link
         ow.LinkWhiskers('Force', true);            % see Guide for the detail about 'Force'
-        
+
         % Save
         ow.objStruct.measurements.Save([include_files{fileNum} '_curated.measurements']);
     end
-    
+
     %% Link whole session
     if ~exist([sessionDir filesep 'settings'],'dir')
         mkdir([sessionDir filesep 'settings']);
@@ -291,7 +294,7 @@ if false
         'facemasks', false, ...
         'physics', false, ...
         'contact', false);
-    
+
     %% Other Linking methods
     % Using Reclassify script
     % Classify only 5 whiskers now
@@ -308,7 +311,7 @@ if false
         disp(sysCall);
         system(sysCall);
     end
-    
+
     % Using Whisker linker
     for fileNum=1:numel(include_files)
         try
@@ -322,7 +325,7 @@ if false
         catch
         end
     end
-    
+
     %Plot input
     dt=0.002;
     time=double([linkedMeasurements.measurements(:).fid]).*dt;
@@ -334,7 +337,7 @@ if false
         mask = [linkedMeasurements.measurements(:).label]==whisker_id;
         plot(time(mask),angle(mask),colors(whisker_id+1));
     end
-    
+
     %Plot output
     dt=0.002;
     time=double([linkedMeasurements.outMeasurements(:).fid]).*dt;
@@ -346,7 +349,7 @@ if false
         mask = [linkedMeasurements.outMeasurements(:).label]==whisker_id;
         plot(time(mask),angle(mask),colors(whisker_id+1));
     end
-    
+
 end
 
 %% functions
