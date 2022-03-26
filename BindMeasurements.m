@@ -83,7 +83,7 @@ for fileNum=1:numel(videoFiles)
     numFrames=nan(numel(wmFiles),1);
     for mFileNum=1:numel(wmFiles)
         mfName=wmFiles(mFileNum).name;
-        whiskerData = Whisker.LoadMeasurements(mfName);
+        whiskerData = LoadMeasurements(mfName);
         %         whiskerVals=Whisker.LoadWhiskers(strrep(mfName,'.measurements','.whiskers'));
         %         overlap_whiskers_on_video(strrep(mfName,'.measurements',''),1)
         
@@ -102,8 +102,6 @@ for fileNum=1:numel(videoFiles)
         
         %% remove non-whisker objects
         wCluster = WhiskingFun.ClusterWhiskers(whiskerData);
-        
-        
         whiskerData=whiskerData(wCluster);
         %         labelIdx=[whiskerData.label]>=0;
         %         whiskerData = whiskerData(labelIdx,:);
