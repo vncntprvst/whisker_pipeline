@@ -462,6 +462,20 @@ classdef WhiskingFun
             end
         end
         
+%         ampThd=18; %12; %18 %amplitude threshold
+% freqThld=1; %frequency threshold
+% minBoutDur=1000; %500; % 1000 % minimum whisking bout duration: 1s
+% whiskingEpochs=cell(numel(bWhisk),1);
+% for wNum=1:numel(bWhisk)
+%     whiskingEpochs{wNum}=WhiskingFun.FindWhiskingEpochs(...
+%         whiskers(bWhisk(wNum)).amplitude,whiskers(bWhisk(wNum)).frequency,...
+%         ampThd, freqThld, minBoutDur);
+%     whiskingEpochs{wNum}(isnan(whiskingEpochs{wNum}))=false; %just in case
+%     whiskingEpochsList=bwconncomp(whiskingEpochs{wNum});
+%     [~,wBoutDurSort]=sort(cellfun(@length,whiskingEpochsList.PixelIdxList),'descend');
+%     whiskingEpochsList.PixelIdxListSorted=whiskingEpochsList.PixelIdxList(wBoutDurSort);
+% end
+                
         %% FindWhiskingModes
         %%%%%%%%%%%%%%%%%%%
         function wMode=FindWhiskingModes(wAngle,wVelocity,wAmplitude,wFrequency,wSetPoint,samplingRate,whiskingEpochsIdx)
