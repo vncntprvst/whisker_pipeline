@@ -39,7 +39,7 @@ for fileNum=1:numel(videoFiles)
             case '.csv' %computer side timestamps saved as backup option
                 videoTimestamps=readtable(videoTimestampFile);
                 if any(ismember({'RelativeCameraFrameTime'}, videoTimestamps.Properties.VariableNames))
-                    frameTimes=videoTimestamps.RelativeCameraFrameTime/10^6;
+                    frameTimes=videoTimestamps.RelativeCameraFrameTime/10^9; %in sec
                 elseif numel(fieldnames(videoTimestamps))==7
                     %% See ParseCSV_timestamps.bonsai for conversion.
                     %                     continue
