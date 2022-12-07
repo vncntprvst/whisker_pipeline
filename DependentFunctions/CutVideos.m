@@ -3,11 +3,11 @@ function CutVideos(sessionDir,videoFiles)
 %% Write Frame Split Index File
 % list timestamps files
 timestampFiles=ListTSFiles(sessionDir);
-
-[frameTimes,frameTimeInterval] = CreateVideoTimeSplitFile(videoFiles,timestampFiles);
-frameTimes = frameTimes-frameTimes(1);
-frameRate=1/frameTimeInterval;
-FRratio=frameRate/firstVideo.FrameRate;
+[frameTimes,frameRate] = CreateVideoTimeSplitFile(videoFiles,timestampFiles);
+firstVideo=VideoReader(videoFiles(1).name);
+videoFrameRate=firstVideo.FrameRate;
+clearvars firstVideo
+FRratio=frameRate{1}/videoFrameRate;
 
 %% Split videos
 % use Bonsai if installed
@@ -24,6 +24,8 @@ for fileNum=1:numel(videoFiles)
     videoFileName=videoFiles(fileNum).name;
     frameSplitIndexFileName = [videoFileName(1:end-4) '_VideoFrameSplitIndex.csv'];
     videoDirectory=[sessionDir filesep];
+
+%     if video already cut, skip
 
     if exist('BonsaiPath','var')
         BonsaiWFPath=fullfile(fileparts(mfilename('fullpath')),'VideoOp');

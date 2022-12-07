@@ -1,9 +1,13 @@
-function [frameTimes,frameTimeInterval] = CreateVideoTimeSplitFile(videoFiles,timestampFiles,sessionDir)
+function [frameTimes,frameRate] = CreateVideoTimeSplitFile(videoFiles,timestampFiles,sessionDir)
 currDir = cd;
-if ~exist('fileDir','var')
+if ~exist('sessionDir','var')
     sessionDir = currDir;
 end
 cd(sessionDir);
+
+% pre-allocate
+[frameTimes,frameRate]=deal(cell(numel(videoFiles),1));
+
 % Write Frame Split Index File
 for fileNum=1:numel(videoFiles)
     clearvars videoData numFrames compIndex videoTimestamps
@@ -34,33 +38,33 @@ for fileNum=1:numel(videoFiles)
         switch tsFileExt
             case '.dat' %sync file output from actual TTLs
                 syncFile = fopen(videoTimestampFile, 'r');
-                frameTimes = fread(syncFile,'single');%'int32' % VideoFrameTimes: was fread(fid,[2,Inf],'double'); Adjust export
+                fTimes = fread(syncFile,'single');%'int32' % VideoFrameTimes: was fread(fid,[2,Inf],'double'); Adjust export
                 fclose(syncFile);
             case '.csv' %computer side timestamps saved as backup option
                 videoTimestamps=readtable(videoTimestampFile);
                 if any(ismember({'RelativeCameraFrameTime'}, videoTimestamps.Properties.VariableNames))
-                    frameTimes=videoTimestamps.RelativeCameraFrameTime/10^9; %in sec
+                    fTimes=videoTimestamps.RelativeCameraFrameTime/10^9; %in sec
                 elseif numel(fieldnames(videoTimestamps))==7
                     %% See ParseCSV_timestamps.bonsai for conversion.
                     %                     continue
-                    frameTimes=(1:2:numFrames*2)-1;frameTimes=frameTimes';
+                    fTimes=(1:2:numFrames*2)-1;fTimes=fTimes';
                 elseif all(ismember({'Hour','Minute','Second'}, videoTimestamps.Properties.VariableNames))
-                    frameTimes=videoTimestamps.Hour*3600+videoTimestamps.Minute*60+videoTimestamps.Second;
-                    frameTimes=frameTimes-frameTimes(1);
-                    frameTimes=frameTimes*1000;
+                    fTimes=videoTimestamps.Hour*3600+videoTimestamps.Minute*60+videoTimestamps.Second;
+                    fTimes=fTimes-fTimes(1);
+                    fTimes=fTimes*1000;
                 end
             case '.bin' %Paul's plugin
                 TSfileID=fopen(videoTimestampFile,'r');
                 videoTimestamps=fread(TSfileID,[3 Inf],'int64'); %see line 121 https://github.com/paulmthompson/BaslerCameraPlugin/blob/master/BaslerCamera/BaslerCameraEditor.cpp
                 fclose(TSfileID);
-                frameTimes=videoTimestamps(1,find(videoTimestamps(3,:)>0,1):end)-...
+                fTimes=videoTimestamps(1,find(videoTimestamps(3,:)>0,1):end)-...
                     videoTimestamps(1,find(videoTimestamps(3,:)>0,1));
                 %                 frameTimes=videoTimestamps(1,:)-videoTimestamps(1,1);
-                frameTimes=linspace(0,frameTimes(end),numFrames);
-                frameTimes=frameTimes'/30; %recorded at 30kHz
+                fTimes=linspace(0,fTimes(end),numFrames);
+                fTimes=fTimes'/30; %recorded at 30kHz
         end
-        frameDur=unique(round(diff(frameTimes)*1000));
-        
+        frameDur=unique(round(diff(fTimes)*1000));
+
         if numel(frameDur)>1
             % go back and double check TTLs too:
             [recFile,recDir] = uigetfile({'*.dat;*.bin;*.continuous;*.kwik;*.kwd;*.kwx;*.nex;*.ns*','All Data Formats';...
@@ -68,30 +72,30 @@ for fileNum=1:numel(videoFiles)
             [~,~,~,TTLs] =LoadEphysData(recFile,recDir);%vIRt44_1210_5101.ns6 recDir='D:\Vincent\vIRt44\vIRt44_1210';
             %         foo=diff(TTLs{1, 2}.TTLtimes  );
             %         [ipiFreq,uniqueIPIs]=hist(foo,unique(double(foo)))
-            
+
             %         if BR rec:
             triggerTimes=TTLs{1, 2}(2).start/TTLs{1, 2}(2).samplingRate*1000; %TTLs{1, 2}.TTLtimes
             %         if OE rec:
             %         triggerTimes = TTLs{1, 2}(1,TTLs{1, 2}(2,:)>0)/30;
             if numel(triggerTimes)>12 %if not old setup
                 triggerTimes=triggerTimes'-triggerTimes(1);
-                
+
                 %             clockDrift=(mode(frameTimes./floor(frameTimes))-1)/frameDur(1);
                 %             round(frameTimes-(clockDrift*floor(frameTimes)));
-                
+
                 %% find gaps
                 contPeriods=bwconncomp([true;round(diff(triggerTimes))==mode(diff(triggerTimes))]);
                 gapIndex=cellfun(@(contPIdx) [contPIdx(1);contPIdx(end)], contPeriods.PixelIdxList, 'UniformOutput', false);
                 gapIndex=reshape([gapIndex{:}],[1 numel(gapIndex)*2]); trigGapIndex=reshape(gapIndex,[2,numel(gapIndex)/2]);
-                
-                contPeriods=bwconncomp([true,round(diff(frameTimes'))==mode(round(diff(frameTimes)))]);
+
+                contPeriods=bwconncomp([true,round(diff(fTimes'))==mode(round(diff(fTimes)))]);
                 if contPeriods.NumObjects~=size(trigGapIndex,2)
                     disp(['serious frame number mismatch for' videoFiles(fileNum).name])
                     continue
                 end
                 gapIndex=cellfun(@(contPIdx) [contPIdx(1);contPIdx(end)], contPeriods.PixelIdxList, 'UniformOutput', false);
                 gapIndex=reshape([gapIndex{:}],[1 numel(gapIndex)*2]); frameTimeGapIndex=reshape(gapIndex,[2,numel(gapIndex)/2]);
-                
+
                 %% Probably need to (re)export vSync then . But coordinate with Batch export (ask to overwrite, etc)
                 % For now, save index fix
                 vSyncFix=struct('fixIndex',[],'fixType',[]);
@@ -110,7 +114,7 @@ for fileNum=1:numel(videoFiles)
                     end
                 end
                 save([videoFileName(1:end-4) '_vSyncFix.mat'],'vSyncFix');
-                
+
                 %             % diagnostics plots
                 %             figure; hold on
                 %             plot(diff([triggerTimes';frameTimes']));
@@ -134,22 +138,22 @@ for fileNum=1:numel(videoFiles)
                 %                     frameTimes(frameTimeGapIndex(1,contPeriodNum):frameTimeGapIndex(2,contPeriodNum))-...
                 %                     frameTimes(frameTimeGapIndex(1,contPeriodNum)),'or');
                 %             end
-                
+
             else
-                frameTimes=frameTimes(1:numFrames);
+                fTimes=fTimes(1:numFrames);
             end
         else
-            if numel(frameTimes)>numFrames
-                frameTimes=frameTimes(1:numFrames);
-            elseif numel(frameTimes)==numFrames-1 %extra frame recorded
-                frameTimes=[frameTimes;frameTimes(end)+ mode(diff(frameTimes))];
+            if numel(fTimes)>numFrames
+                fTimes=fTimes(1:numFrames);
+            elseif numel(fTimes)==numFrames-1 %extra frame recorded
+                fTimes=[fTimes;fTimes(end)+ mode(diff(fTimes))];
             end
         end
     else
-        frameTimes=table(linspace(1,numFrames*2,numFrames)','VariableNames',{'Var1'});
+        fTimes=table(linspace(1,numFrames*2,numFrames)','VariableNames',{'Var1'});
     end
     % check that video has as many frames as timestamps
-    if size(frameTimes,1)~=numFrames
+    if diff([size(fTimes,1),numFrames])>1
         disp(['discrepancy in frame number for file ' videoFileName])
         continue
     else %do the splitting
@@ -159,7 +163,7 @@ for fileNum=1:numel(videoFiles)
         %         chunkIndex=find([0;diff(mod(videoTimestamps/10^9,chunkDuration))]<0); % find the 5 second video segments
         %         %make 2 columns: start and stop indices
         %         chunkIndex=int32([1,chunkIndex(1,1);chunkIndex(1:end-1),chunkIndex(2:end)]);
-        
+
         % based on absolute time
         if exist('videoTimestamps','var') & isfield(videoTimestamps,'Properties')
             if ismember('RelativeCameraFrameTime', videoTimestamps.Properties.VariableNames)
@@ -181,6 +185,11 @@ for fileNum=1:numel(videoFiles)
         frameSplitIndexFileName=[videoFileName(1:end-4) '_VideoFrameSplitIndex.csv'];
         dlmwrite([sessionDir filesep frameSplitIndexFileName],chunkIndex,'delimiter', ',','precision','%i');
     end
+    frameTimes{fileNum}=fTimes-fTimes(1);
+    frameRate{fileNum}=1/frameTimeInterval;
 end
 
 cd(currDir);
+
+% read the csv file:
+% chunkIndex=readmatrix([sessionDir filesep frameSplitIndexFileName]);

@@ -6,7 +6,7 @@ if nargin == 0; sessionDir = cd; end
 %% List video files to process
 videoFiles=ListVideoFiles(sessionDir);
 
-%% Generate Whisking param file
+%% Generate whisking param file
 [whiskingParams,splitUp]=GetWhiskingParams(sessionDir,videoFiles);
 
 %% Cut videos in 5 second chunks

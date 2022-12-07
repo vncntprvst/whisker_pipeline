@@ -1,6 +1,6 @@
 function [whiskingParams,splitUp]=GetWhiskingParams(sessionDir,videoFiles)
 
-if ~exist(fullfile(sessionDir,'WhiskerTracking','whiskerpad.json'),'file')
+if ~exist(fullfile(sessionDir,'WhiskerTracking','whiskerpad.json'),'file')  
     firstVideo=VideoReader(videoFiles(1).name);
     [whiskingParams,splitUp]=WhiskingFun.DrawWhiskerPadROI(firstVideo);
     if ~isfolder('WhiskerTracking'); mkdir('WhiskerTracking'); end
