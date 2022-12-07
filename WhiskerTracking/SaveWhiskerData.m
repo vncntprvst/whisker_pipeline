@@ -1,8 +1,9 @@
 function SaveWhiskerData(sessionDir)
 
-if nargin == 0
-    sessionDir = cd;
-end
+if nargin == 0; sessionDir = cd; end
+
+[dirPath,dirFolder]=fileparts(sessionDir);
+if strcmp(dirFolder,'WhiskerTracking'); sessionDir=dirPath; end
 
 try
     %% List video files
