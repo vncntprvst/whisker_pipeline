@@ -9,15 +9,20 @@ videoFiles=ListVideoFiles(sessionDir);
 timestampFiles=ListTSFiles(sessionDir);
 
 % get and save whiskerpad coordinates
-firstVideo=VideoReader(videoFiles(1).name);
-
-[whiskingParams,splitUp]=WhiskingFun.DrawWhiskerPadROI(firstVideo);
-
-if ~isfolder('WhiskerTracking')
-    mkdir('WhiskerTracking');
+if ~exist(fullfile(sessionDir,'WhiskerTracking','whiskerpad.json'),'file')
+    firstVideo=VideoReader(videoFiles(1).name);
+    
+    [whiskingParams,splitUp]=WhiskingFun.DrawWhiskerPadROI(firstVideo);
+    
+    if ~isfolder('WhiskerTracking')
+        mkdir('WhiskerTracking');
+    end
+    
+    WhiskingFun.SaveWhiskingParams(whiskingParams,fullfile(sessionDir,'WhiskerTracking'))
+else
+    whiskingParams = jsondecode(fileread(fullfile(sessionDir,'WhiskerTracking','whiskerpad.json')));
+    switch size(whiskingParams,1); case 1; splitUp='No'; case 2; splitUp='Yes'; end
 end
-
-WhiskingFun.SaveWhiskingParams(whiskingParams,fullfile(sessionDir,'WhiskerTracking'))
 
 % Write Frame Split Index File
 [frameTimes,frameTimeInterval] = CreateVideoTimeSplitFile(videoFiles,timestampFiles);
@@ -168,7 +173,7 @@ end
 % cd ..
 
 %% Perform whisker detection
-% if starting from this steps, open WhiskerTracking folder, then set
+% if starting from this step, open WhiskerTracking folder, then set
 % sessionDir=fileparts(cd);
 % whiskingParams = jsondecode(fileread(fullfile(cd,'whiskerpad.json')));
 % if numel(whiskingParams)>1; splitUp='Yes'; end
