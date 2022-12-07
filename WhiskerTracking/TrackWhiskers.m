@@ -1,10 +1,12 @@
-function TrackWhiskers(sessionDir,whiskingParams,splitUp)
+function TrackWhiskers(sessionDir,whiskingParams,splitUp,overWrite)
 
 if nargin<1; sessionDir=fileparts(cd); end
 if nargin<2
-    whiskingParams = jsondecode(fileread(fullfile(cd,'whiskerpad.json')));
-    if numel(whiskingParams)>1; splitUp='Yes'; end
+    [whiskingParams,splitUp]=GetWhiskingParams(sessionDir,videoFiles);
+%     whiskingParams = jsondecode(fileread(fullfile(sessionDir, 'WhiskerTracking','whiskerpad.json')));
+%     if numel(whiskingParams)>1; splitUp='Yes'; end
 end
+if nargin < 4; overWrite=false; end
 
 ext = '.mp4';
 ignoreExt = '.measurements';
