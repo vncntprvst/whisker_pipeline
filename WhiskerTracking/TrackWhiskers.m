@@ -2,9 +2,9 @@ function TrackWhiskers(sessionDir,whiskingParams,splitUp,overWrite)
 
 if nargin<1; sessionDir=fileparts(cd); end
 if nargin<2
-    [whiskingParams,splitUp]=GetWhiskingParams(sessionDir,videoFiles);
-%     whiskingParams = jsondecode(fileread(fullfile(sessionDir, 'WhiskerTracking','whiskerpad.json')));
-%     if numel(whiskingParams)>1; splitUp='Yes'; end
+%     [whiskingParams,splitUp]=GetWhiskingParams(sessionDir,videoFiles);
+    whiskingParams = jsondecode(fileread(fullfile(sessionDir, 'WhiskerTracking','whiskerpad.json')));
+    if numel(whiskingParams)>1; splitUp='Yes'; end
 end
 if nargin < 4; overWrite=false; end
 
@@ -13,9 +13,14 @@ ignoreExt = '.measurements';
 for wpNum=1:numel(whiskingParams)
     include_files = arrayfun(@(x) x.name(1:(end-length(ext))),...
         dir([sessionDir filesep 'WhiskerTracking' filesep '*' ext]),'UniformOutput',false);
-    % Return list of files that are already tracked
+    if ~overWrite
+    % Ignore files that are already tracked
     ignore_files = arrayfun(@(x) x.name(1:(end-length(ignoreExt))),...
         dir([sessionDir filesep 'WhiskerTracking' filesep '*' ignoreExt]),'UniformOutput',false);
+    else
+        ignore_files = {''};
+    end
+
     switch splitUp
         case 'Yes'
             switch whiskingParams(wpNum).FaceSideInImage
@@ -29,6 +34,7 @@ for wpNum=1:numel(whiskingParams)
         case 'No'
             keepFile = true(size(include_files));
     end
+
     inclusionIndex = ~ismember(include_files,ignore_files) & keepFile;
     include_files = include_files(inclusionIndex);
 
@@ -47,7 +53,8 @@ for wpNum=1:numel(whiskingParams)
     
     % process all files
     TraceMeasureClassify(fullfile(sessionDir, 'WhiskerTracking'),'ext',ext,...
-        'include_files',include_files,'side',whiskingParams(wpNum).FaceSideInImage,...
+        'include_files',include_files,'ignore_files',ignore_files,...
+        'side',whiskingParams(wpNum).FaceSideInImage,...
         'face_x_y',whiskingParams(wpNum).Location,'px2mm',px2mm,'num_whiskers',num_whiskers);
 
 end

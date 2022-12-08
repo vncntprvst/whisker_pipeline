@@ -26,7 +26,7 @@ cd(d)
 
 vfNames = arrayfun(@(x) x.name(1:(end-4)), dir([d '*.mp4']),'UniformOutput',false);
 
-if ~isempty(p.Results.include_files) % Make sure files are found. If not, ignored.
+if isempty(p.Results.include_files) % Make sure files are found. If not, ignored.
     ind = ismember(p.Results.include_files,vfNames);
     vfNames = p.Results.include_files(ind);
     if sum(ind) ~= numel(ind)
@@ -49,7 +49,6 @@ end
 nfiles = length(vfNames);
 
 if ~isempty(vfNames)
-    
     parfor k=1:nfiles
         fn = vfNames{k};
         disp(['Processing file '  fn ', ' int2str(k) ' of ' int2str(nfiles)])
