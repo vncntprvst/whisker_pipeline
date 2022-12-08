@@ -35,6 +35,7 @@ if ~isempty(videoFiles)
     for fileNum=1:numel(videoFiles)
         videoFileName=videoFiles(fileNum).name;
         frameSplitIndexFileName = [videoFileName(1:end-4) '_VideoFrameSplitIndex.csv'];
+        trialNum=size(readmatrix(frameSplitIndexFileName),1);
         videoDirectory=[sessionDir filesep];
 
         if exist('BonsaiPath','var')
@@ -43,18 +44,29 @@ if ~isempty(videoFiles)
                 ' -p:Path.Directory=' videoDirectory...
                 ' -p:Path.VideoFileName=' videoFileName...
                 ' --start --noeditor'];
+            wtDirList=dir(fullfile(sessionDir,'WhiskerTracking'));
+            wtDirMes={wtDirList(cellfun(@(wtFN) contains(wtFN,{'.measurements'}),{wtDirList.name})).name};
             switch splitUp
                 case 'No'
-                    BonsaiWFPath=fullfile(BonsaiWFPath, 'SplitVideoByFrameIndex.bonsai');
-                    sysCall=[BonsaiPath 'Bonsai ' BonsaiWFPath callFlags];
-                    disp(sysCall); [~,~]= system(sysCall);
+                    mesFiles=wtDirMes(cellfun(@(x) contains(x,videoFileName(1:end-4)) ,wtDirMes));
+                    if numel(mesFiles)<trialNum || (islogical(overWrite) && overWrite)
+                        BonsaiWFPath=fullfile(BonsaiWFPath, 'SplitVideoByFrameIndex.bonsai');
+                        sysCall=[BonsaiPath 'Bonsai ' BonsaiWFPath callFlags];
+                        disp(sysCall); [~,~]= system(sysCall);
+                    end
                 case 'Yes'
-                    BonsaiWFPath=fullfile(BonsaiWFPath, 'SplitVideoByFrameIndex_SplitLeft.bonsai');
-                    sysCall=[BonsaiPath 'Bonsai ' BonsaiWFPath callFlags];
-                    disp(sysCall); [~,~]= system(sysCall);
-                    BonsaiWFPath=fullfile(BonsaiWFPath, 'SplitVideoByFrameIndex_SplitRight.bonsai');
-                    sysCall=[BonsaiPath 'Bonsai ' BonsaiWFPath callFlags];
-                    disp(sysCall); [~,~]= system(sysCall);
+                    leftMesFiles=wtDirMes(cellfun(@(x) contains(x,[videoFileName(1:end-4),'_Left']) ,wtDirMes));
+                    if numel(leftMesFiles)<trialNum || (islogical(overWrite) && overWrite)
+                        BonsaiWFPath=fullfile(BonsaiWFPath, 'SplitVideoByFrameIndex_SplitLeft.bonsai');
+                        sysCall=[BonsaiPath 'Bonsai ' BonsaiWFPath callFlags];
+                        disp(sysCall); [~,~]= system(sysCall);
+                    end
+                    rightMesFiles=wtDirMes(cellfun(@(x) contains(x,[videoFileName(1:end-4),'_Right']) ,wtDirMes));
+                    if numel(rightMesFiles)<trialNum || (islogical(overWrite) && overWrite)
+                        BonsaiWFPath=fullfile(BonsaiWFPath, 'SplitVideoByFrameIndex_SplitRight.bonsai');
+                        sysCall=[BonsaiPath 'Bonsai ' BonsaiWFPath callFlags];
+                        disp(sysCall); [~,~]= system(sysCall);
+                    end
             end
         else
             try
