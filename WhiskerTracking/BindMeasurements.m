@@ -111,7 +111,7 @@ for fileNum=1:numel(videoFiles)
         if isempty(whiskerData); continue; end
         
         %% Fix IDs
-        whiskerData=FixWhiskerID(whiskerData,whiskerpad);
+        %whiskerData=FixWhiskerID(whiskerData,whiskerpad);
         
         %% Adjust wisker ID if from the contralateral side
         if any(ismember(widRaiseIdx,mFileNum))

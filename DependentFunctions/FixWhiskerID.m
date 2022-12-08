@@ -41,7 +41,7 @@ allWLabels=mat2cell([wData.label]',frameBlockSize);
 allWID=mat2cell([wData.wid]',frameBlockSize);
 orderingVals=mat2cell([wData.(fol_axis)]',frameBlockSize);
 
-parfor fID=1:numel(ufIds) %fID=1:37 %250 values in vIRt57_0216_5732
+parfor fID=1:numel(ufIds)
     if any(~ismember(keepWhiskerID,allWLabels{fID}))
         % get labels from wid
         keepFWIDidx=ismember(allWID{fID},keepWhiskerID) |...
