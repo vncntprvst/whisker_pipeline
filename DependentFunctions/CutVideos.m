@@ -167,8 +167,10 @@ if ~isempty(videoFiles)
 
     if ~isempty(aviFiles)
         for fileNum=1:numel(aviFiles)
-            sysCall=['ffmpeg -i ' aviFiles(fileNum).name ' -vcodec copy ' aviFiles(fileNum).name(1:end-3) 'mp4'];
-            disp(sysCall); system(sysCall);
+            if ~exist([aviFiles(fileNum).name(1:end-3) 'mp4'],'file')
+                sysCall=['ffmpeg -i ' aviFiles(fileNum).name ' -vcodec copy ' aviFiles(fileNum).name(1:end-3) 'mp4'];
+                disp(sysCall); system(sysCall);
+            end
         end
         delete *.avi
     end
