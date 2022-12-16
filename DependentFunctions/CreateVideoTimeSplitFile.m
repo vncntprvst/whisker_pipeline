@@ -1,8 +1,7 @@
-function [frameTimes,frameRate] = CreateVideoTimeSplitFile(videoFiles,timestampFiles,sessionDir)
+function [frameTimes,frameRate] = CreateVideoTimeSplitFile(videoFiles,timestampFiles,sessionDir,writeFile)
 currDir = cd;
-if ~exist('sessionDir','var')
-    sessionDir = currDir;
-end
+if ~exist('sessionDir','var'); sessionDir = currDir; end
+if ~exist('writeFile','var'); writeFile = true; end
 cd(sessionDir);
 
 % pre-allocate
@@ -179,11 +178,13 @@ for fileNum=1:numel(videoFiles)
             else; disp('Fix frame interval first'); end
         end
         frameTimeInterval=frameTimeInterval/1000;
-        chunkIndex=0:chunkDuration/frameTimeInterval:numFrames;
-        chunkIndex=int32([chunkIndex(1:end-1)',chunkIndex(2:end)'-1]);
-        % write the file
-        frameSplitIndexFileName=[videoFileName(1:end-4) '_VideoFrameSplitIndex.csv'];
-        dlmwrite([sessionDir filesep frameSplitIndexFileName],chunkIndex,'delimiter', ',','precision','%i');
+        if writeFile
+            chunkIndex=0:chunkDuration/frameTimeInterval:numFrames;
+            chunkIndex=int32([chunkIndex(1:end-1)',chunkIndex(2:end)'-1]);
+            % write the file
+            frameSplitIndexFileName=[videoFileName(1:end-4) '_VideoFrameSplitIndex.csv'];
+            dlmwrite([sessionDir filesep frameSplitIndexFileName],chunkIndex,'delimiter', ',','precision','%i');
+        end
     end
     frameTimes{fileNum}=fTimes-fTimes(1);
     frameRate{fileNum}=1/frameTimeInterval;
