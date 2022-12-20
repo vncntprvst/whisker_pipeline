@@ -57,50 +57,41 @@ end
 function FFMPEG_Split(videoFileName,frameRate,outputDir,whiskingParams,splitUp)
 %             outF=[outputDir filesep videoFileName(1:end-4) '_Trial' num2str(chunkNum-1) '.mp4'];
 
-inputArg=['ffmpeg -y -hwaccel_output_format cuda -r ' num2str(frameRate{1}) ' -i ' videoFileName];
-encodeArg=['  -f segment -segment_time 100 '...
-            '-c:v copy -c:a copy -reset_timestamps 1 -map 0:0 -r ' num2str(frameRate{1})];
-ouputArg=['-an ' outputDir filesep videoFileName(1:end-4)];
+inputArg=['ffmpeg -y -i ' videoFileName];
+% -hwaccel_output_format cuda requires configuration to accelerate decoding
+% -r ' num2str(frameRate{1}) ' that slows x20 down when cropping
+
+encodeArg=[' -qscale:v 0 -f segment -segment_time 100 '...
+    '-reset_timestamps 1 -map 0:0 '];
+% -r ' num2str(frameRate{1}) : dont specify for speed sake. Video outputs will be set to 25fps
+ouputArg=[' -an ' outputDir filesep videoFileName(1:end-4)];
 logArg=' -async 1 -hide_banner -loglevel panic';
 
 switch splitUp
 
     case 'No'
-    ouputArg=[ouputArg '_Trial%d.mp4'];
-    sysCall=[inputArg encodeArg ouputArg logArg];
+        ouputArg=[ouputArg '_Trial%d.mp4'];
+        sysCall=[inputArg encodeArg ' -c:v copy -c:a copy ' ouputArg logArg];
+        disp(sysCall); system(sysCall);
 
     case 'Yes'
         vidFrame=whiskingParams(1).ImageDimensions;
-        splitLArg=[' -vf crop=' num2str(vidFrame(2)) ':' num2str(vidFrame(1)) ':0:0 '];
-        splitRArg=[' -vf crop=' num2str(vidFrame(2)) ':' num2str(vidFrame(1)) ':' num2str(vidFrame(2)) ':0 '];
+        splitLArg=[' -vf crop=' num2str(vidFrame(2)) ':' num2str(vidFrame(1)) ':0:0'];
+        splitRArg=[' -vf crop=' num2str(vidFrame(2)) ':' num2str(vidFrame(1)) ':' num2str(vidFrame(2)) ':0'];
 
         sysCall=[inputArg ...
-            encodeArg splitLArg ouputArg '_Left_Trial%d.mp4' ...
-            encodeArg splitRArg ouputArg '_Right_Trial%d.mp4'...
+            encodeArg splitLArg ouputArg '_Left_Trial%d.mp4' ... % avi is twice as fast for same quality or better
             logArg];
-
-% 
-%         sysCall=['ffmpeg -y -i ' outF ...
-%             ' -vf crop=' num2str(midWidth) ':' num2str(size(vidFrame,1)) ':0:0 ' ...
-%             '-c:a copy '...
-%             outputDir filesep videoFileName(1:end-4) '_Left_Trial' ...
-%             num2str(chunkNum-1) '.mp4'];
-%         disp(sysCall); system(sysCall);
-% 
-%         sysCall=['ffmpeg -y -i ' outF ...
-%             ' -vf crop=' num2str(midWidth) ':' num2str(size(vidFrame,1))...
-%             ':' num2str(midWidth) ':0 ' ...
-%             '-c:a copy '...
-%             outputDir filesep videoFileName(1:end-4) '_Right_Trial' ...
-%             num2str(chunkNum-1) '.mp4'];
-%         disp(sysCall); system(sysCall);
+        disp(sysCall); system(sysCall);
+        sysCall=[inputArg ...
+            encodeArg splitRArg ouputArg '_Right_Trial%d.mp4' ... % avi is twice as fast for same quality or better
+            logArg];
+        disp(sysCall); system(sysCall);
 
         % check frame number
-%         vf=[outputDir filesep videoFileName(1:end-4) '_Right_Trial' num2str(chunkNum-1) '.mp4'];
-%         CheckFrameNum(vf,chunkFrameNum)
+        %         vf=[outputDir filesep videoFileName(1:end-4) '_Right_Trial' num2str(chunkNum-1) '.mp4'];
+        %         CheckFrameNum(vf,chunkFrameNum)
 end
-
-        disp(sysCall); system(sysCall);
 
 % % Get Frame Rate ratio
 % % firstVideo=VideoReader(videoFiles(1).name);
