@@ -18,16 +18,38 @@ classdef WhiskingFun
                     whiskingParams = WhiskingFun.GetWhiskingParams(vidFrame);
                     %clearvars firstVideo
                 case 'Yes'
+                    noseLoc=GetNoseTipCoordinates(vid.Path,vid.Name);
                     midWidth=round(size(vidFrame,2)/2);
+                    if noseLoc(1)>midWidth-size(vidFrame,2)/8 && noseLoc(1)<midWidth+size(vidFrame,2)/8
+                        %if nosetip x value within +/- 1/8 of frame width,
+                        %use that value
+                        midWidth=noseLoc(1);
+                    end
                     % get whisking parameters for left side
                     leftImage=vidFrame(:,1:midWidth,:);
-                    whiskingParams = WhiskingFun.GetWhiskingParams(leftImage);
+                    whiskingParams = WhiskingFun.GetWhiskingParams(leftImage,midWidth-round(size(vidFrame,2)/2));
                     % get whisking parameters for right side
                     rightImage=vidFrame(:,midWidth+1:end,:);
-                    whiskingParams(2) = WhiskingFun.GetWhiskingParams(rightImage);
+                    whiskingParams(2) = WhiskingFun.GetWhiskingParams(rightImage,round(size(vidFrame,2)/2)-midWidth);
             end
         end
         
+        %% Get general whisking parameters
+        function whiskingParams = GetWhiskingParams(topviewImage,midlineOffset)
+            [wpCoordinates,wpLocation,wpRelativeLocation,sideBrightness] = ...
+                WhiskingFun.GetWhiskerPadCoord(topviewImage);
+            [faceSideInImage,protractionDirection,linkingDirection]=WhiskingFun.GetWhiskerPadParams...
+                (wpCoordinates,wpRelativeLocation,sideBrightness);
+            whiskingParams=struct('Coordinates',round(wpCoordinates,2),...
+                'Location',wpLocation,...
+                'RelativeLocation',round(wpRelativeLocation,2),...
+                'FaceSideInImage',faceSideInImage,...
+                'ProtractionDirection',protractionDirection,...
+                'LinkingDirection',linkingDirection,...
+                'MidlineOffset', midlineOffset, ...
+                'ImageDimensions',size(topviewImage));
+        end
+
         %% Get whisker pad coordinates
         function [wpCoordinates,wpLocation,wpRelativeLocation,sideBrightness] =...
                 GetWhiskerPadCoord(topviewImage)
@@ -111,21 +133,7 @@ classdef WhiskingFun
             end
             linkingDirection = 'rostral';
         end
-        
-        %% Get general whisking parameters
-        function whiskingParams = GetWhiskingParams(topviewImage)
-            [wpCoordinates,wpLocation,wpRelativeLocation,sideBrightness] = WhiskingFun.GetWhiskerPadCoord(topviewImage);
-            [faceSideInImage,protractionDirection,linkingDirection]=WhiskingFun.GetWhiskerPadParams...
-                (wpCoordinates,wpRelativeLocation,sideBrightness);
-            whiskingParams=struct('Coordinates',round(wpCoordinates,2),...
-                'Location',wpLocation,...
-                'RelativeLocation',round(wpRelativeLocation,2),...
-                'FaceSideInImage',faceSideInImage,...
-                'ProtractionDirection',protractionDirection,...
-                'LinkingDirection',linkingDirection,...
-                'ImageDimensions',size(topviewImage));
-        end
-        
+                
         %% Save whisking parameters in json file
         function SaveWhiskingParams(whiskingParams,trackingDir)
             str=strrep(jsonencode(whiskingParams),',"',sprintf(',\r\n\t"'));
