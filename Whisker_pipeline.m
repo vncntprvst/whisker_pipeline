@@ -17,7 +17,7 @@ end
 
 %% Cut videos in 5 second chunks
 if cutVids
-    overWrite = 'missing_only'; % overwrite files? true / false / missing_only
+    overWrite = true; % overwrite files? true / false / 'missing_only'
     CutVideos(sessionDir,videoFiles,overWrite); 
 end
 

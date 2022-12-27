@@ -68,23 +68,24 @@ ouputArg=[' -an ' outputDir filesep videoFileName(1:end-4)];
 logArg=' -async 1 -hide_banner -loglevel panic';
 
 switch splitUp
-
     case 'No'
         ouputArg=[ouputArg '_Trial%d.mp4'];
         sysCall=[inputArg encodeArg ' -c:v copy -c:a copy ' ouputArg logArg];
         disp(sysCall); system(sysCall);
 
     case 'Yes'
+        % crop=w:h:x:y
         vidFrame=whiskingParams(1).ImageDimensions;
         splitLArg=[' -vf crop=' num2str(vidFrame(2)) ':' num2str(vidFrame(1)) ':0:0'];
-        splitRArg=[' -vf crop=' num2str(vidFrame(2)) ':' num2str(vidFrame(1)) ':' num2str(vidFrame(2)) ':0'];
+        vidFrame=whiskingParams(2).ImageDimensions; xLoc=vidFrame(2)-2*whiskingParams(2).MidlineOffset;
+        splitRArg=[' -filter:v "crop=' num2str(vidFrame(2)) ':' num2str(vidFrame(1)) ':' num2str(xLoc) ':0,hflip"'];
 
         sysCall=[inputArg ...
-            encodeArg splitLArg ouputArg '_Left_Trial%d.mp4' ... % avi is twice as fast for same quality or better
+            encodeArg splitLArg ouputArg '_' whiskingParams(1).FaceSideInImage '_Trial%d.mp4' ... % avi is twice as fast for same quality or better
             logArg];
         disp(sysCall); system(sysCall);
         sysCall=[inputArg ...
-            encodeArg splitRArg ouputArg '_Right_Trial%d.mp4' ... % avi is twice as fast for same quality or better
+            encodeArg splitRArg ouputArg '_' whiskingParams(2).FaceSideInImage '_Trial%d.mp4' ... % avi is twice as fast for same quality or better
             logArg];
         disp(sysCall); system(sysCall);
 
