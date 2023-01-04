@@ -289,12 +289,10 @@ Height as Height)</scr:Expression>
                       </Combinator>
                     </Builder>
                   </Expression>
-                  <Expression xsi:type="Disable">
-                    <Builder xsi:type="Combinator">
-                      <Combinator xsi:type="cv:Flip">
-                        <cv:Mode>Vertical</cv:Mode>
-                      </Combinator>
-                    </Builder>
+                  <Expression xsi:type="Combinator">
+                    <Combinator xsi:type="cv:Flip">
+                      <cv:Mode>Vertical</cv:Mode>
+                    </Combinator>
                   </Expression>
                   <Expression xsi:type="Combinator">
                     <Combinator xsi:type="rx:Take">
