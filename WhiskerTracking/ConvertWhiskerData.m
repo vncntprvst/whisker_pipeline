@@ -24,6 +24,12 @@ end
 videoSyncFiles = cellfun(@(fileFormat) dir([workDir filesep '*' filesep '*' filesep fileFormat]),...
     {'*vSync*'},'UniformOutput', false);
 videoSyncFiles=vertcat(videoSyncFiles{~cellfun('isempty',videoSyncFiles)});
+if isempty(videoSyncFiles)
+videoSyncFiles = cellfun(@(fileFormat) dir([workDir filesep fileFormat]),...
+    {'*FrameTime*'},'UniformOutput', false);
+videoSyncFiles=vertcat(videoSyncFiles{~cellfun('isempty',videoSyncFiles)});
+if isempty(videoSyncFiles); disp('No sync file found'); return; end
+end
 % do not include files in Analysis folder:
 videoSyncFiles=videoSyncFiles(~cellfun(@(flnm) contains(flnm,{'Analysis';'vSyncFix'}),...
     {videoSyncFiles.folder}));
@@ -70,9 +76,16 @@ for fileNum=1:numFiles
         end
         
         % load video sync data
-        syncDataFile = fopen(fullfile(videoSyncFiles(compIndex).folder,videoSyncFiles(compIndex).name));
-        syncTTLs = fread(syncDataFile,'single');
-        fclose(syncDataFile);
+        [~,~,fileExt]=fileparts(videoSyncFiles(compIndex).name);
+        switch fileExt
+            case {'.bin','.dat'}
+                syncDataFile = fopen(fullfile(videoSyncFiles(compIndex).folder,videoSyncFiles(compIndex).name));
+                syncTTLs = fread(syncDataFile,'single');
+                fclose(syncDataFile);
+            case '.csv'
+                syncTTLs=readmatrix(fullfile(videoSyncFiles(compIndex).folder,videoSyncFiles(compIndex).name));
+                syncTTLs=syncTTLs(:,1);
+        end
         
         % convert to table if needed
         if contains(class(wtData),'struct')
@@ -156,9 +169,14 @@ for fileNum=1:numFiles
         end
         
         %% export data
-        exportFileName=regexp(videoSyncFiles(compIndex).name,'\S+(?=_vSyncTTLs)','match','once');
+        exportFileName=whiskerpad(1).FileName(1:end-4);
+%         exportFileName=regexp(videoSyncFiles(compIndex).name,'\S+(?=_vSyncTTLs)','match','once');
+%         if isempty(exportFileName)
+%             exportFileName=regexp(videoSyncFiles(compIndex).name,'\S+(?=FrameTime)','match','once');
+%         end 
+        
         fullExportFileName=fullfile(videoSyncFiles(compIndex).folder,[exportFileName '_wMeasurements.mat']);
-        save(fullExportFileName,'whiskers','wtData','syncTTLs','samplingRate','fileName');
+        save(fullExportFileName,'whiskers','wtData','syncTTLs','samplingRate','fileName','-v7.3');
 %         RemoteSync([exportFileName '_wMeasurements.mat'],replace(videoSyncFiles(compIndex).folder,'SpikeSorting','Analysis'),...
 %             videoSyncFiles(compIndex).folder,[],'Sync_ToServer_SpikeSorting')% work on this 
         % also save the original files' location
