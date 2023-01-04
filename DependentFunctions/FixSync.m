@@ -24,6 +24,7 @@ end
 videoSyncFiles = cellfun(@(fileFormat) dir([workDir filesep '*' filesep '*' filesep fileFormat]),...
     {'*vSync*'},'UniformOutput', false);
 videoSyncFiles=vertcat(videoSyncFiles{~cellfun('isempty',videoSyncFiles)});
+if isempty(videoSyncFiles); disp('No sync file found'); return; end
 % do not include files in Analysis folder:
 videoSyncFiles=videoSyncFiles(~cellfun(@(flnm) contains(flnm,{'Analysis';'vSyncFix'}),...
     {videoSyncFiles.folder}));
