@@ -8,6 +8,8 @@ if ~exist(fullfile(sessionDir,'WhiskerTracking','whiskerpad.json'),'file')
     %     vidFrame=imread('firstFrame.jpg');
 
     [whiskingParams,splitUp]=WhiskingFun.DrawWhiskerPadROI(firstVideo);
+    [whiskingParams.FileName]=deal(firstVideo.Name);
+    [whiskingParams.FileDir]=deal(firstVideo.Path);
     if ~isfolder('WhiskerTracking'); mkdir('WhiskerTracking'); end
     WhiskingFun.SaveWhiskingParams(whiskingParams,fullfile(sessionDir,'WhiskerTracking'))
 else

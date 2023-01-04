@@ -31,6 +31,8 @@ classdef WhiskingFun
                     % get whisking parameters for right side
                     rightImage=vidFrame(:,midWidth+1:end,:);
                     whiskingParams(2) = WhiskingFun.GetWhiskingParams(rightImage,round(size(vidFrame,2)/2)-midWidth);
+                    whiskingParams(1).ImageSide='Left';
+                    whiskingParams(2).ImageSide='Right';
             end
         end
         
