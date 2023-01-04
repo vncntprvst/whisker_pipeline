@@ -149,7 +149,9 @@ for fileNum=1:numel(videoFiles)
             end
         end
     else
-        fTimes=table(linspace(1,numFrames*2,numFrames)','VariableNames',{'Var1'});
+        frameDur = 10000/(2*numFrames);
+%         fTimes=table(linspace(0,numFrames*2-frameDur,numFrames)','VariableNames',{'Var1'});
+        fTimes=linspace(0,numFrames*2-frameDur,numFrames)';
     end
     % check that video has as many frames as timestamps
     if diff([size(fTimes,1),numFrames])>1

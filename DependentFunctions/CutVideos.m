@@ -15,7 +15,7 @@ if ~isempty(videoFiles)
 
     % Write Frame Split Index File
     timestampFiles=ListTSFiles(sessionDir);
-    [~,frameRate] = CreateVideoTimeSplitFile(videoFiles,timestampFiles,cd,false);
+    [~,frameRate] = CreateVideoTimeSplitFile(videoFiles,timestampFiles,cd,true);
 
     if ~system('ffmpeg -version') % use ffmpeg
         use_ffmpeg=true;
@@ -35,7 +35,7 @@ if ~isempty(videoFiles)
             FFMPEG_Split(videoFileName,frameRate,outputDir,whiskingParams,splitUp);
         elseif use_bonsai
             frameSplitIndexFileName = [videoFileName(1:end-4) '_VideoFrameSplitIndex.csv'];
-            Bonsai_Split(videoDirectory,videoFileName,sessionDir,frameSplitIndexFileName,frameRate)
+            Bonsai_Split(videoDirectory,videoFileName,sessionDir,frameSplitIndexFileName, splitUp); %frameRate
         elseif use_cv2
             pyCV2_Split(videoData,chunkIndex)
         end        
@@ -66,6 +66,10 @@ encodeArg=[' -qscale:v 0 -f segment -segment_time 100 '...
 % -r ' num2str(frameRate{1}) : dont specify for speed sake. Video outputs will be set to 25fps
 ouputArg=[' -an ' outputDir filesep videoFileName(1:end-4)];
 logArg=' -async 1 -hide_banner -loglevel panic';
+
+% try -r 25
+% -video_track_timescale 25
+% ?? 
 
 switch splitUp
     case 'No'
@@ -116,7 +120,7 @@ end
 end
 
 
-function Bonsai_Split(videoDirectory,videoFileName,sessionDir,frameSplitIndexFileName)
+function Bonsai_Split(videoDirectory,videoFileName,sessionDir,frameSplitIndexFileName, splitUp)
 % use Bonsai if installed
 %     if ~system('Bonsai --noeditor') % found in the path
 BonsaiPath=''; % no need to set the path then
@@ -127,12 +131,9 @@ BonsaiPath=''; % no need to set the path then
 %         end
 %     end
 
-BonsaiWFPath=fullfile(fileparts(mfilename('fullpath')),'VideoOp');
 trialNum=size(readmatrix(frameSplitIndexFileName),1);
-splitIndex=readmatrix(frameSplitIndexFileName);
-splitIndex=splitIndex+1; % 1 index
-
-for chunkNum=1:size(splitIndex,1)
+% splitIndex=readmatrix(frameSplitIndexFileName);
+% splitIndex=splitIndex+1; % 1 index
 
 callFlags= [' -p:Path.CSVFileName=' frameSplitIndexFileName...
     ' -p:Path.Directory=' videoDirectory...
@@ -149,19 +150,21 @@ switch splitUp
             disp(sysCall); [~,~]= system(sysCall);
         end
     case 'Yes'
+        BonsaiWFPath=fullfile(fileparts(mfilename('fullpath')),'VideoOp');
         leftMesFiles=wtDirMes(cellfun(@(x) contains(x,[videoFileName(1:end-4),'_Left']) ,wtDirMes));
         if numel(leftMesFiles)<trialNum || (islogical(overWrite) && overWrite)
             BonsaiWFPath=fullfile(BonsaiWFPath, 'SplitVideoByFrameIndex_SplitLeft.bonsai');
             sysCall=[BonsaiPath 'Bonsai ' BonsaiWFPath callFlags];
             disp(sysCall); [~,~]= system(sysCall);
         end
+        BonsaiWFPath=fullfile(fileparts(mfilename('fullpath')),'VideoOp');
         rightMesFiles=wtDirMes(cellfun(@(x) contains(x,[videoFileName(1:end-4),'_Right']) ,wtDirMes));
         if numel(rightMesFiles)<trialNum || (islogical(overWrite) && overWrite)
-            BonsaiWFPath=fullfile(BonsaiWFPath, 'SplitVideoByFrameIndex_SplitRight.bonsai');
+%             BonsaiWFPath=fullfile(BonsaiWFPath, 'SplitVideoByFrameIndex_SplitRight.bonsai');
+            BonsaiWFPath=fullfile(BonsaiWFPath, 'SplitVideoByFrameIndex_SplitRight_Flip.bonsai');
             sysCall=[BonsaiPath 'Bonsai ' BonsaiWFPath callFlags];
             disp(sysCall); [~,~]= system(sysCall);
         end
-end
 end
 end
 
