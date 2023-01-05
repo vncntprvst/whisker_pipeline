@@ -1,4 +1,4 @@
-function ConvertWhiskerData(whiskerData)
+function fullExportFileName=ConvertWhiskerData(whiskerData)
 % Export whole-recording whisker tracking data
 % Run in directory where WhiskerTracking folder is located, typically <SessionFolder>
 workDir=cd;

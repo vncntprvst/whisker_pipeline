@@ -1,4 +1,4 @@
-function SaveWhiskerData(sessionDir)
+function exportList=SaveWhiskerData(sessionDir)
 
 if nargin == 0; sessionDir = cd; end
 
@@ -23,6 +23,7 @@ catch
     return
 end
 
+exportList = cell(numel(videoFiles),1);
 for fileNum=1:numel(videoFiles)
     % get measurements
     try
@@ -32,7 +33,7 @@ for fileNum=1:numel(videoFiles)
         cd(sessionDir)
         FixSync(whiskerData); %should skip this if unneeded
         % convert angles to advanced values (phase, etc ...) and save them 
-        ConvertWhiskerData(whiskerData);
+        exportList{fileNum}=ConvertWhiskerData(whiskerData);
     catch ME
         disp(['failed converting whisker data for ' videoFiles(fileNum).name])
         disp(ME.identifier)
