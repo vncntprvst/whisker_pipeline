@@ -54,9 +54,22 @@ for fileNum=1:numel(videoFiles)
     [partNum,sortFileIdx]=sort(partNum);
     wmFiles=wmFiles(sortFileIdx,:);
     recordingName=regexprep(videoFileName(1:end-4),'\W','');
-    vid = VideoReader(strrep(wmFiles(1).name,'.measurements','.mp4'));
-    vidNumFrames=vid.Duration*vid.FrameRate;
-    frameWidth=vid.Width;
+    if contains(wmFiles(1).name,'Trial')
+        vid = VideoReader(strrep(wmFiles(1).name,'.measurements','.mp4'));
+        chunkNumFrames=vid.Duration*vid.FrameRate;
+        frameWidth=vid.Width;
+    else
+        % wisk container
+        chunkNumFrames=cellfun(@(x) str2double(regexp(x,'(?<=\w)\d+(?=.measurements)','match')), {wmFiles.name});
+        chunkNumFrames=mode(diff(chunkNumFrames));
+        if contains(wmFiles(1).name,'left')
+            frameWidth=whiskerpad(contains({whiskerpad.FaceSideInImage},'left')).ImageDimensions(end);
+        elseif contains(wmFiles(1).name,'right')
+            frameWidth=whiskerpad(contains({whiskerpad.FaceSideInImage},'right')).ImageDimensions(end);
+        else
+            frameWidth=[whiskerpad.ImageDimensions]; frameWidth=sum(frameWidth(2,:));
+        end
+    end
     if length(recordingName)>=52 %will be too long once _WhiskerData is added
         recordingName = recordingName(1:51);
     end
@@ -158,17 +171,17 @@ for fileNum=1:numel(videoFiles)
     
     % All chunks are assumed to have the same number of frames (except the last one, which is fine)
     numFrames=mode(numFrames);
-    if numFrames~=vidNumFrames
+    if numFrames~=chunkNumFrames
         disp({['inconsistent number of frames vs fids for ' ...
             wmFiles(mFileNum).name]; ...
-            ['Number of frames: ' num2str(vidNumFrames)];
+            ['Number of frames: ' num2str(chunkNumFrames)];
             ['Number of fids: ' num2str(numFrames)]})
         %         return
     end
     
     % adjust frame ids
     for mFileNum=1:numel(unique(partNum))
-        numPrecedFrame=vidNumFrames*partNum(reIndex(mFileNum));
+        numPrecedFrame=chunkNumFrames*partNum(reIndex(mFileNum));
         entryRange=ismember([allWhiskerData.(recordingName).partID],mFileNum-1);
         allWhiskerData.(recordingName).fid(entryRange,1)=...
             allWhiskerData.(recordingName).fid(entryRange,1)+numPrecedFrame;

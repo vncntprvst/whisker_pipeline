@@ -16,18 +16,18 @@ if whiskParams
     GetWhiskingParams(sessionDir,videoFiles);
 end
 
-if ~system('docker -v')
-    % User whisk container
-    DockerTrace(videoFiles);
-else
-    %% Cut videos in 5 second chunks
-    if cutVids
-        overWrite = true; % overwrite files? true / false / 'missing_only'
-        CutVideos(sessionDir,videoFiles,overWrite);
-    end
+%% Cut videos in 5 second chunks
+if cutVids
+    overWrite = 'missing_only'; % overwrite files? true / false / 'missing_only'
+    CutVideos(sessionDir,videoFiles,overWrite);
+end
 
-    %% Perform whisker detection
-    if trackWhisk
+%% Perform whisker detection
+if trackWhisk
+    if ~system('docker -v')
+        % User whisk container
+        DockerTrace(videoFiles);
+    else
         overWrite = false; % overwrite files?
         TrackWhiskers(sessionDir);
     end
@@ -45,6 +45,14 @@ if loadData
     elseif exist("whiskerDataList", "var")
         fName=whiskerDataList{1};
     end
-    wtData=load(fName);
+    [~,~,fileExt]=fileparts(fName);
+    switch fileExt
+        case '.hdf5' 
+            wDataHeader=h5info(fName);
+            h5disp(fName,'/summary');
+            wData=h5read(fName,'/summary');
+        case '.mat'
+            wtData=load(fName);
+    end
 end
 

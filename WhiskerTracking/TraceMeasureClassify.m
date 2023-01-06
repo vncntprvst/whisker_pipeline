@@ -55,12 +55,14 @@ if ~isempty(vfNames)
         % Trace
         syscall = ['trace ' fn '.mp4 ' fn '.whiskers']; disp(syscall); system(syscall);
         % Measure
-        syscall = ['measure --face ' num2str(p.Results.face_x_y) ' x  '...
-            fn '.whiskers ' fn '.measurements']; disp(syscall); system(syscall);
+        syscall = ['measure --face ' p.Results.side ' '...
+            fn '.whiskers ' fn '.measurements']; disp(syscall); system(syscall); %num2str(p.Results.face_x_y) ' x '
         % Classify
         syscall = ['classify ' fn '.measurements ' fn '.measurements '...
-            num2str(p.Results.face_x_y) ' x --px2mm 0.032 -n '...
+            p.Results.side ' --px2mm ' num2str(p.Results.px2mm) ' -n '...
             num2str(p.Results.num_whiskers) ' --limit2.0:50.0']; disp(syscall); system(syscall); 
+        %num2str(p.Results.face_x_y) ' x '
+        % --px2mm 0.032
     end
 end
 
