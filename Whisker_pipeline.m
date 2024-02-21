@@ -1,8 +1,19 @@
 function wtData=Whisker_pipeline(sessionDir,whiskParams,cutVids,trackWhisk,collateData,loadData)
-% Runs the whisker pipeline.
+% Runs the whisker pipeline
+
+% INPUTS: 
 % sessionDir: the directory where are the video files
-if nargin == 0; sessionDir = cd; end
-if nargin < 2; whiskParams = true; end
+% whiskParams: generate whisking param file? true / false
+% cutVids: cut videos in 5 second chunks? true / false
+% trackWhisk: perform whisker detection? true / false
+% collateData: concatenate measurements and save whisker data? true / false
+% loadData: load whisker data? true / false
+
+% OUTPUTS:
+% wtData: whisker data
+
+if nargin == 0; sessionDir = cd; end 
+if nargin < 2; whiskParams = true; end 
 if nargin < 3; cutVids = true; end
 if nargin < 4; trackWhisk = true; end
 if nargin < 5; collateData = true; end

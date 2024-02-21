@@ -2,10 +2,10 @@
 <WorkflowBuilder Version="2.7.1"
                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                  xmlns:rx="clr-namespace:Bonsai.Reactive;assembly=Bonsai.Core"
+                 xmlns:ipy="clr-namespace:Bonsai.Scripting.IronPython;assembly=Bonsai.Scripting.IronPython"
                  xmlns:cv="clr-namespace:Bonsai.Vision;assembly=Bonsai.Vision"
                  xmlns:scr="clr-namespace:Bonsai.Scripting.Expressions;assembly=Bonsai.Scripting.Expressions"
                  xmlns:io="clr-namespace:Bonsai.IO;assembly=Bonsai.System"
-                 xmlns:ipy="clr-namespace:Bonsai.Scripting.IronPython;assembly=Bonsai.Scripting.IronPython"
                  xmlns="https://bonsai-rx.org/2018/workflow">
   <Workflow>
     <Nodes>
@@ -19,7 +19,7 @@
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="StringProperty">
-                <Value>D:\Vincent\NWB\ExampleDatasets\Vincent\Ephys_Behavior\whisker_asym\sc007\sc007_1216\WhiskerTracking\</Value>
+                <Value>E:\test\whisker_tracking\dev\</Value>
               </Combinator>
             </Expression>
             <Expression xsi:type="Combinator">
@@ -34,7 +34,7 @@
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="StringProperty">
-                <Value>test.mp4</Value>
+                <Value>swhiskers.mp4</Value>
               </Combinator>
             </Expression>
             <Expression xsi:type="Combinator">
@@ -128,18 +128,20 @@ def process(value):
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="cv:FileCapture">
-                <cv:FileName>D:\Vincent\NWB\ExampleDatasets\Vincent\Ephys_Behavior\whisker_asym\sc007\sc007_1216\WhiskerTracking\test.mp4</cv:FileName>
-                <cv:PlaybackRate>100</cv:PlaybackRate>
+                <cv:FileName>E:\test\whisker_tracking\dev\swhiskers.mp4</cv:FileName>
+                <cv:PlaybackRate>12.5</cv:PlaybackRate>
                 <cv:StartPosition>0</cv:StartPosition>
                 <cv:PositionUnits>Frames</cv:PositionUnits>
                 <cv:Loop>true</cv:Loop>
-                <cv:Playing>true</cv:Playing>
+                <cv:Playing>false</cv:Playing>
               </Combinator>
             </Expression>
-            <Expression xsi:type="Combinator">
-              <Combinator xsi:type="rx:Take">
-                <rx:Count>1</rx:Count>
-              </Combinator>
+            <Expression xsi:type="Disable">
+              <Builder xsi:type="Combinator">
+                <Combinator xsi:type="rx:Take">
+                  <rx:Count>1</rx:Count>
+                </Combinator>
+              </Builder>
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="cv:Grayscale" />
@@ -343,23 +345,24 @@ Item2.noseX + Item1.addWidth as noseX,
 Item2.noseY + Item1.addHeight as noseY
 )</scr:Expression>
             </Expression>
-            <Expression xsi:type="GroupWorkflow">
-              <Name>Outpout CSV mask filename</Name>
-              <Workflow>
-                <Nodes>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>VideoFileName</Name>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>DirName</Name>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="rx:Zip" />
-                  </Expression>
-                  <Expression xsi:type="ipy:PythonTransform">
-                    <ipy:Name>nose tip coord filename</ipy:Name>
-                    <ipy:Description />
-                    <ipy:Script>import clr
+            <Expression xsi:type="Disable">
+              <Builder xsi:type="GroupWorkflow">
+                <Name>Outpout CSV mask filename</Name>
+                <Workflow>
+                  <Nodes>
+                    <Expression xsi:type="SubscribeSubject">
+                      <Name>VideoFileName</Name>
+                    </Expression>
+                    <Expression xsi:type="SubscribeSubject">
+                      <Name>DirName</Name>
+                    </Expression>
+                    <Expression xsi:type="Combinator">
+                      <Combinator xsi:type="rx:Zip" />
+                    </Expression>
+                    <Expression xsi:type="ipy:PythonTransform">
+                      <ipy:Name>nose tip coord filename</ipy:Name>
+                      <ipy:Description />
+                      <ipy:Script>import clr
 
 def getOutputType():
     return clr.GetClrType(str)
@@ -373,32 +376,39 @@ def process(value):
   path = value.Item2 + filename 
   return path
 </ipy:Script>
-                  </Expression>
-                  <Expression xsi:type="WorkflowOutput" />
-                </Nodes>
-                <Edges>
-                  <Edge From="0" To="2" Label="Source1" />
-                  <Edge From="1" To="2" Label="Source2" />
-                  <Edge From="2" To="3" Label="Source1" />
-                  <Edge From="3" To="4" Label="Source1" />
-                </Edges>
-              </Workflow>
+                    </Expression>
+                    <Expression xsi:type="WorkflowOutput" />
+                  </Nodes>
+                  <Edges>
+                    <Edge From="0" To="2" Label="Source1" />
+                    <Edge From="1" To="2" Label="Source2" />
+                    <Edge From="2" To="3" Label="Source1" />
+                    <Edge From="3" To="4" Label="Source1" />
+                  </Edges>
+                </Workflow>
+              </Builder>
             </Expression>
-            <Expression xsi:type="PropertyMapping">
-              <PropertyMappings>
-                <Property Name="FileName" />
-              </PropertyMappings>
+            <Expression xsi:type="Disable">
+              <Builder xsi:type="PropertyMapping">
+                <PropertyMappings>
+                  <Property Name="FileName" />
+                </PropertyMappings>
+              </Builder>
             </Expression>
-            <Expression xsi:type="io:CsvWriter">
-              <io:FileName>D:\Vincent\NWB\ExampleDatasets\Vincent\Ephys_Behavior\whisker_asym\sc007\sc007_1216\WhiskerTracking\test_NoseTipCoord.csv</io:FileName>
-              <io:ListSeparator>,</io:ListSeparator>
-              <io:Append>false</io:Append>
-              <io:Overwrite>true</io:Overwrite>
-              <io:Suffix>None</io:Suffix>
-              <io:IncludeHeader>false</io:IncludeHeader>
-              <io:Selector>noseX,noseY</io:Selector>
+            <Expression xsi:type="Disable">
+              <Builder xsi:type="io:CsvWriter">
+                <io:FileName>D:\Vincent\NWB\ExampleDatasets\Vincent\Ephys_Behavior\whisker_asym\sc007\sc007_1216\WhiskerTracking\test_NoseTipCoord.csv</io:FileName>
+                <io:ListSeparator>,</io:ListSeparator>
+                <io:Append>false</io:Append>
+                <io:Overwrite>true</io:Overwrite>
+                <io:Suffix>None</io:Suffix>
+                <io:IncludeHeader>false</io:IncludeHeader>
+                <io:Selector>noseX,noseY</io:Selector>
+              </Builder>
             </Expression>
-            <Expression xsi:type="WorkflowOutput" />
+            <Expression xsi:type="Disable">
+              <Builder xsi:type="WorkflowOutput" />
+            </Expression>
           </Nodes>
           <Edges>
             <Edge From="0" To="1" Label="Source1" />
