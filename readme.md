@@ -17,6 +17,6 @@ Dependencies:
   2. Add Python in Matlab: pyenv('Version',*executable*) -> specifies the full path to the Python executable (e.g., `C:\ProgramData\Anaconda3\python.exe`).  
   3. Install opencv. Check that the `cv2` package can be imported in python. You may need to install via `pip install opencv-contrib-python`. 
 
-* Python: 
-Create a conda environment with the `environment.yml` file: `conda env create -f environment.yml`.  
+* Python:  
+Create a conda environment with the `environment.yml` file: `conda env create -f environment.yml`.   
 The main script is wt_trace_measure.py. 
