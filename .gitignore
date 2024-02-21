@@ -1,12 +1,9 @@
 Documentations/
 defaultPipelineInfo/
-FacePro/
 packages/
-MATLAB/
 ThirdPartyFunctions/
 old/
 tests/
 *.asv
-Towal et al 2011 - Whisker angle convention.png
 TBD.md
 DependentFunctions/+Whisker/measurements_datatype.m
