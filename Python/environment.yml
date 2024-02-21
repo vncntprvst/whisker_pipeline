@@ -1,0 +1,16 @@
+name: whisker_tracking
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - matplotlib
+  - pandas
+  - pytables
+  - statsmodels
+  - opencv
+  - ffmpeg-python
+  - pip
+  - pip:
+    - WhiskiWrap
+
