@@ -1,7 +1,7 @@
 #!/bin/bash                      
 
 # Example:
-# ~/code/whisk/whisk_trace_measure_combine.sh 'home/wanglab/data/whisker_asym' 'sc014/sc014_0325' 'sc014_0325_001_TopCam0.mp4' 'sc014_0325_001'
+# ~/code/whisker_pipeline/Scripts/whisk_trace_measure_combine.sh 'home/wanglab/data/whisker_asym' 'sc014/sc014_0325' 'sc014_0325_001_TopCam0.mp4' 'sc014_0325_001'
 
 export HDF5_USE_FILE_LOCKING=FALSE
 
