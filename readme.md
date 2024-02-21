@@ -1,7 +1,12 @@
 ### Installation 
 * Clone or download this repository.  
-* Matlab: add the Matlab folder to Matlab's path. 
-Dependencies:  
+* If using **Python**:  
+Create a conda environment with the `environment.yml` file: `conda env create -f environment.yml`.   
+The main script is wt_trace_measure.py.
+
+* If using **Matlab**:  
+Add the Matlab folder to Matlab's path.  
+Install dependencies:  
   **Whisk**  
   1. See code source and download options [here](https://github.com/vncntprvst/whisk).  
   2. Add the {WhiskerTracking}/bin directory to your environment's path  
@@ -17,6 +22,3 @@ Dependencies:
   2. Add Python in Matlab: pyenv('Version',*executable*) -> specifies the full path to the Python executable (e.g., `C:\ProgramData\Anaconda3\python.exe`).  
   3. Install opencv. Check that the `cv2` package can be imported in python. You may need to install via `pip install opencv-contrib-python`. 
 
-* Python:  
-Create a conda environment with the `environment.yml` file: `conda env create -f environment.yml`.   
-The main script is wt_trace_measure.py. 
