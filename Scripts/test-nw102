@@ -1,0 +1,21 @@
+
+# Prepare test data
+mkdir test
+ffmpeg -ss 00:01:30 -i sc016_0630_001_TopCam0.mp4 -ss 00:00:00 -t 00:00:10 -c copy test/sc016_0630_001_10sWhisking.mp4
+
+# In Environment
+conda activate whisker_tracking
+set file_path="E:\whisker_asym\test\sc016_0630_001_30sWhisking.mp4"
+python C:\Code\whisker_pipeline\Python\wt_trace_measure.py %file_path% -s -p 8
+
+# With Docker
+set file_path="E:\whisker_asym\test"
+set file_name="sc016_0630_001_30sWhisking.mp4"
+set base_name="sc016_0630_001"
+set script_path="C:\Code\WhiskerTracking\whiskerpipeline\Python"
+set nproc=16
+
+docker run --rm -v %file_path%:/data -v %script_path%:/scripts wanglabneuro/whisk-ww:latest python /scripts/wt_trace_measure.py /data/%file_name% -s -b %base_name% -p %nproc%
+
+# test container: start it then log into it
+docker run --rm -it --name wwtest -v %file_path%:/data -v %script_path%:/scripts wanglabneuro/whisk-ww:nb-0.3.0 /bin/bash
