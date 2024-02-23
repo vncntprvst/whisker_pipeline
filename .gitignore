@@ -7,3 +7,6 @@ tests/
 *.asv
 TBD.md
 DependentFunctions/+Whisker/measurements_datatype.m
+Python/d
+Python/__pycache__/whiskerpad.cpython-37.pyc
+Python/__pycache__/whiskerpad.cpython-310.pyc

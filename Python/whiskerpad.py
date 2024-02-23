@@ -66,8 +66,12 @@ class FaceParams:
         return copy.deepcopy(self)
     
 class Params:
-    def __init__(self, video_file, splitUp=False, interactive=False):
+    def __init__(self, video_file, splitUp=False, basename=None, interactive=False):
         self.video_file = video_file
+        if basename is None:
+            self.basename = os.path.splitext(os.path.basename(video_file))[0]
+        else:
+            self.basename = basename
         self.video_dir = os.path.dirname(video_file)
         self.splitUp = splitUp
         self.interactive = interactive
@@ -600,11 +604,13 @@ class WhiskerPad:
 
         # Create whiskerpadParams dictionary
         whiskerpad = {'filename': os.path.basename(args.video_file),
+                        'basename': args.basename,
                         'directory': trackingDir,
                         'split': args.splitUp,
                         'whiskerpads': whiskerpadParams}
 
-        filename = os.path.basename(args.video_file).split('.')[0]
+        filename = whiskerpad['basename']
+        #os.path.basename(args.video_file).split('.')[0]
 
         # Save whiskerpad parameters to json file named whiskerpad_{filename}.json
         with open(os.path.join(trackingDir, 'whiskerpad_' + filename + '.json'), 'w') as file:

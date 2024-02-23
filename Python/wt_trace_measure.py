@@ -8,6 +8,7 @@ import numpy as np
 import time
 
 import WhiskiWrap as ww
+from WhiskiWrap import reassess_wid as rw
 import whiskerpad as wp
 # Check that whisk binaries are executables and update permissions if necessary
 from wwutils.whisk_permissions import update_permissions
@@ -29,20 +30,19 @@ def trace_measure(input_file, base_name, output_dir, nproc, splitUp):
     start_time = time.time()
     print('Start time:', time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_time)))
 
-    # Create whiskerpad parameters file. 
-    # The file has the same name as the input video file, but with the extension .json, and prefixed with whiskerpad_
-    whiskerpad_file = os.path.join(input_dir, f'whiskerpad_{os.path.basename(input_file).split(".")[0]}.json')
-
-    # if whiskerpad file does not exist, create it
+    # Load whiskerpad json file
+    whiskerpad_file = os.path.join(input_dir, f'whiskerpad_{base_name}.json')
+    # whiskerpad_file = os.path.join(input_dir, f'whiskerpad_{os.path.basename(input_file).split(".")[0]}.json')
+    
     if not os.path.exists(whiskerpad_file):
+    # If whiskerpad file does not exist, create it
         print('Creating whiskerpad parameters file.')
-        whiskerpad=wp.Params(input_file, splitUp)
+        whiskerpad=wp.Params(input_file, splitUp, base_name)
         # Get whiskerpad parameters
         whiskerpadParams, splitUp = wp.WhiskerPad.get_whiskerpad_params(whiskerpad)
         # Save whisking parameters to json file
         wp.WhiskerPad.save_whiskerpad_params(whiskerpad, whiskerpadParams)
 
-    # Load whiskerpad json file
     with open(whiskerpad_file, 'r') as f:
         whiskerpad_params = json.load(f)
 
@@ -57,11 +57,11 @@ def trace_measure(input_file, base_name, output_dir, nproc, splitUp):
     ### Run whisker tracking
     ########################
 
-    # Time the tracking
-    start_time_track = time.time()
-
     for side in side_types:
         print(f'Running whisker tracking for {side} face side video')
+
+        # Time the tracking
+        start_time_track = time.time()
 
         h5_filename = os.path.join(os.path.dirname(input_file), f'{base_name}_{side}.hdf5')
         chunk_name_pattern = f'{base_name}_{side}_%08d.tif'
@@ -89,11 +89,16 @@ def trace_measure(input_file, base_name, output_dir, nproc, splitUp):
             face=im_side,
             # Pass arguments for the classify call
             classify={'px2mm': '0.04', 'n_whiskers': '3'},
-            summary_only = True
-        )
+            summary_only = True,
+            skip_existing=True
+        )      
 
-    time_track = time.time() - start_time_track
-    print(f'Tracking took {time_track} seconds.')
+        time_track = time.time() - start_time_track
+        print(f'Tracking took {time_track} seconds.')
+
+        # Reassess whisker IDs
+        rw.update_wids(h5_filename)
+
 
         ## Read hdf5 file
         # from ww.base import read_whiskers_hdf5_summary
@@ -111,8 +116,7 @@ def trace_measure(input_file, base_name, output_dir, nproc, splitUp):
 
         # fi=tables.open_file(h5_filename)
     
-    # Reassess whisker IDs
-    ww.reassess_wid.update_wids(h5_filename)
+
 
     # Overall time elapsed
     time_elapsed = time.time() - start_time
@@ -134,19 +138,26 @@ def main():
 
     # Set input and output file paths
     input_file = args.input
-    if args.base is None:
-        base_name = os.path.basename(input_file).split('.')[0]
-    else:
-        base_name = args.base
+
     if args.output_dir is None:
+    # If output directory is not provided, use the same directory as the input file + WT
         output_dir = os.path.join(os.path.dirname(input_file), 'WT')
     else:
         output_dir = args.output_dir
-    nproc = args.nproc
+
+    if args.base is None:
+    # If base name is not provided, use the input file name without the extension
+        base_name = os.path.basename(input_file).split('.')[0]
+    else:
+        base_name = args.base
+
     if args.splitUp is None:
+    # If splitUp is not provided, set it to False
         splitUp = False
     else:
         splitUp = args.splitUp
+
+    nproc = args.nproc
 
     trace_measure(input_file, base_name, output_dir, nproc, splitUp)
 
