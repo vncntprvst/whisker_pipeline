@@ -1,0 +1,23 @@
+
+# Prepare test data
+cd /d /home/wanglab/data/whisker_asym/sc012/test
+mkdir test
+ffmpeg -ss 00:01:30 -i sc012_0119_001_20230119-190517_HSCam.avi -ss 00:00:00 -t 00:00:10 -c copy sc012_0119_001_20230119_10sWhisking.mp4
+mv test E:\test
+cd E:\test
+
+# In Environment
+conda activate whisker_tracking
+set file_path="E:\test\sc016_0630_001_10sWhisking.mp4"
+python C:\Code\whisker_pipeline\Python\wt_trace_measure.py %file_path% -s -p 8
+
+# With Docker
+file_path="/home/wanglab/data/whisker_asym/sc012/test"
+file_name="sc012_0119_001_20230119_10sWhisking.mp4"
+base_name="sc012_0119_001"
+script_path="/home/wanglab/code/whisker_tracking/whisker_pipeline/Python"
+nproc=16
+
+docker run --rm -v $file_path:/data -v $script_path:/scripts wanglabneuro/whisk-ww:nb-0.2.0 python /scripts/wt_trace_measure.py /data/$file_name -s -b $base_name -p $nproc
+
+nb-0.2.0
