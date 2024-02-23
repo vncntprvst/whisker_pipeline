@@ -1,0 +1,5 @@
+file_name="sc016_0630_001_30sWhisking.mp4"
+base_name="test"
+nproc=16
+
+/scripts/wt_trace_measure.py /data/$file_name -s -b $base_name -p $nproc
