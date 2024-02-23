@@ -10,7 +10,9 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "args": ["E:\test\sc016_0630_001_10sWhisking.mp4","-s","-p","16"],
+            "args": [ "E:\test","sc016_0630_001_10sWhisking.mp4","hdf5"
+                // "E:\test\sc016_0630_001_10sWhisking.mp4","-s","-p","16"
+            ],
             "justMyCode": false
         }
     ]

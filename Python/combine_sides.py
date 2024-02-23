@@ -150,6 +150,10 @@ if __name__ == "__main__":  # : -> None
 
     # if measurement_files is empty, combine hdf5 files
     if len(measurement_files) == 0:
+        # if files have been updated, only combine updated files.
+        if any('updated' in f for f in hdf5_files):
+            hdf5_files = [f for f in hdf5_files if 'updated' in f]
+        
         combine_hdf5(hdf5_files, output_file)
     else:
         combine_measurement_files(whiskers_files, measurement_files, output_file, video_filename=video_filename)

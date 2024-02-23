@@ -20,4 +20,7 @@ set nproc=16
 
 docker run --rm -v %file_path%:/data -v %script_path%:/scripts wanglabneuro/whisk-ww:latest python /scripts/wt_trace_measure.py /data/%file_name% -s -b %base_name% -p %nproc%
 
+docker run --rm -v %file_path%:/data -v %script_path%:/scripts wanglabneuro/whisk-ww:latest python /scripts/combine_left_right_whiskers.py /data/WT %file_name% hdf5
+
+# Debug 
 docker run --rm -it -v %file_path%:/data -v %script_path%:/scripts wanglabneuro/whisk-ww:latest /bin/bash 
