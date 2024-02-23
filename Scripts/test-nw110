@@ -9,7 +9,7 @@ cd E:\test
 # In Environment
 conda activate whisker_tracking
 set file_path="E:\test\sc016_0630_001_10sWhisking.mp4"
-python C:\Code\whisker_pipeline\Python\wt_trace_measure.py %file_path% -s -p 8
+python C:\Code\whisker_pipeline\Python\wt_trace_measure.py %file_path% -s -p 16
 
 # With Docker
 set file_path="E:\test"
@@ -20,3 +20,4 @@ set nproc=16
 
 docker run --rm -v %file_path%:/data -v %script_path%:/scripts wanglabneuro/whisk-ww:latest python /scripts/wt_trace_measure.py /data/%file_name% -s -b %base_name% -p %nproc%
 
+docker run --rm -it -v %file_path%:/data -v %script_path%:/scripts wanglabneuro/whisk-ww:latest /bin/bash 
