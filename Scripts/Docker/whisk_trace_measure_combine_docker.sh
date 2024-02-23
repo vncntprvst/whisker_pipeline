@@ -1,47 +1,31 @@
-#!/bin/bash                      
+#!/bin/bash
 
 # Example:
-# ~/code/whisker_pipeline/Scripts/whisk_trace_measure_combine.sh 'home/wanglab/data/whisker_asym' 'sc014/sc014_0325' 'sc014_0325_001_TopCam0.mp4' 'sc014_0325_001'
+# ./whisk_trace_measure_combine.sh "home/wanglab/data/whisker_asym/sc014/sc014_0325" "sc014_0325_001_TopCam0.mp4" "sc014_0325_001" "/home/wanglab/scripts/whisk" "16"
 
 export HDF5_USE_FILE_LOCKING=FALSE
 
 # Data info
-projectDir=$1                               # project directory, e.g., data/whisker_asym
-sessionDir=$2                               # session name, e.g., sc010/sc010_0207 
-fName=$3                                    # video file name
-baseName=$4                                 # used to save chunks, e.g., sc010_0207_3200
-baseName="${baseName:='chunk'}"
+dataDir=$1
+if [ -z "$dataDir" ]; then dataDir=$PWD; fi
+fName=$2
+# if fName is not defined, look for the first mp4 file
+if [ -z "$fName" ]; then fName=$(ls $dataDir/*.mp4 | head -n 1); fi
+baseName=$3
+if [ -z "$baseName" ]; then baseName="chunk"; fi
 
-# User info (in case this is run on someone else' data)
+scripts_dir=$4
+if [ -z "$scripts_dir" ]; then scripts_dir=$PWD; fi
 
-# Set directory
-dataDir="$userDir/$projectDir/$sessionDir"  # where the data is
-dataDir="${dataDir:=$PWD}"
+nproc=$5
+if [ -z "$nproc" ]; then nproc=40; fi
 
 echo "dataDir: $dataDir"
 echo "fName: $fName"
 echo "baseName: $baseName"
 
-# Cutting video in halves then measure
-cd $dataDir && \
-mkdir -p "$dataDir/WT" && \
-docker run --rm \
-     -v $dataDir:/data -v /home/wanglab/scripts/whisk:/scripts \
-     wanglabneuro/whisk-ww:nb-0.0.1 \
-     python /scripts/cut_trace_measure.py --input /data/$fName --base $baseName --nproc 40
-wait
+# Cutting video in halves and measure
+docker run --rm -v $dataDir:/data -v $scripts_dir:/scripts wanglabneuro/whisk-ww:latest python /scripts/wt_trace_measure.py /data/$fName -s -b $baseName -p $nproc
 
 # And combine to export
-docker run --rm \
-     -v $dataDir:/data -v /home/wanglab/scripts/whisk:/scripts \
-     wanglabneuro/whisk-ww:nb-0.0.1 \
-    python /scripts/combine_left_right_whiskers.py /data/WT
-
-# debugging
-# source /etc/profile.d/modules.sh
-# module load openmind/singularity/3.6.3 
-# cd /scratch2/scratch/Wed/vincent/whisker_asym/sc014/sc014_0324/test
-# baseName='sc014_0324_001'
-# fName='sc014_0324_001_30sWhisking.mp4'
-# dataDir=$PWD
-
+docker run --rm -v $dataDir:/data -v $scripts_dir:/scripts wanglabneuro/whisk-ww:latest python /scripts/combine_sides.py /data/ $fName hdf5
