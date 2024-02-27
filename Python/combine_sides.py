@@ -3,10 +3,12 @@ import glob
 import re
 import argparse
 import pandas
+import numpy as np
 import tables
 from typing import List, Optional
 import WhiskiWrap
 from WhiskiWrap.base import read_whiskers_hdf5_summary
+from WhiskiWrap import load_whisker_data as lwd
 
 def get_files(input_dir: str):
     # Initialize list of whiskers and measurement files
@@ -95,13 +97,7 @@ def combine_hdf5(h5_files: List[str], output_file: str = 'combined.csv') -> None
     print(f"Number of unique times: {num_times}")
 
     # Sort combined table by frame id and whisker id
-    combined_table = combined_table.sort_values(by=['fid', 'wid'])
-
-    # reorder columns 
-    combined_table = combined_table[['fid', 'wid', 'label', 'face_x', 'face_y',
-                                    'length', 'pixel_length', 'score', 'angle',
-                                    'curvature', 'follicle_x', 'follicle_y',
-                                    'tip_x', 'tip_y', 'chunk_start']]
+    combined_table = sort_table(combined_table)
 
     # If output file is hdf5 format, save combined table to hdf5 file
     if output_file.endswith('.hdf5'):
@@ -115,6 +111,44 @@ def combine_hdf5(h5_files: List[str], output_file: str = 'combined.csv') -> None
         # Save combined table to csv file
         combined_table.to_csv(output_file, index=False)
         
+def sort_table(combined_table: pandas.DataFrame):
+    """ Sort combined table by frame id and whisker id.
+    """
+    # Sort combined table by frame id and whisker id
+    combined_table = combined_table.sort_values(by=['fid', 'wid'])
+
+    # reorder columns 
+    combined_table = combined_table[['fid', 'wid', 'label', 'face_x', 'face_y',
+                                    'length', 'pixel_length', 'score', 'angle',
+                                    'curvature', 'follicle_x', 'follicle_y',
+                                    'tip_x', 'tip_y', 'chunk_start']]
+    
+    return combined_table
+    
+def combine_sides(summary):
+    """ Combine left and right sides of the face.
+    """
+    # Concatenate all sides
+    combined_summary = pandas.concat(summary.values(), ignore_index=True)
+    # Sort combined table by frame id and whisker id
+    combined_summary = combined_summary.sort_values(by=['fid', 'wid'])
+
+    return combined_summary
+
+def get_midpoints(summary):
+    """ Get midpoints of whiskers.
+    Input:
+    summary: pandas DataFrame
+    Returns:
+    midpoints: pandas DataFrame
+    """
+    # Sort summary by frame id and whisker id
+    summary = sort_table(summary)
+    # For each frame, find the median angle for each frame
+    median_angles = summary.groupby('fid')['angle'].median()
+
+    return median_angles
+
 
 # Create main function 
 if __name__ == "__main__":  # : -> None
@@ -124,24 +158,29 @@ if __name__ == "__main__":  # : -> None
     parser.add_argument("input_dir", help="Path to the directory containing the whiskers and measurement files.")
     parser.add_argument("video_filename", help="video file name")
     parser.add_argument("format", help="output format", default="csv")
+    parser.add_argument("-o", "--output_dir", help="Path to the directory to save the output file.")
+    parser.add_argument("-f", "--feature", help="feature to extract", default="midpoint")
     
     args = parser.parse_args()
 
-    if args.video_filename is None:
+    video_filename = args.video_filename
+    if video_filename is None:
         print("No video file provided to substract midline")
     else:
-        print("Video file:", args.video_filename)
+        print("Video file:", video_filename)
 
     input_dir = args.input_dir
-    output_dir = input_dir #args.output_dir
-    video_filename = args.video_filename
+    if args.output_dir is None:
+        output_dir = input_dir 
+    else:
+        output_dir = args.output_dir
     format = args.format
 
     # Define output file, based on video filename and format
-    if format == "csv":
-        output_file = os.path.join(output_dir, f"{os.path.splitext(video_filename)[0]}.csv")
-    elif format == "hdf5":
-        output_file = os.path.join(output_dir, f"{os.path.splitext(video_filename)[0]}.hdf5")
+    if args.feature is None:
+        output_file = os.path.join(output_dir, f"{os.path.splitext(video_filename)[0]}.{format}")
+    else:
+        output_file = os.path.join(output_dir, f"{os.path.splitext(video_filename)[0]}_{args.feature}.{format}")
 
     print(f"Output file: {output_file}")
 
@@ -156,10 +195,35 @@ if __name__ == "__main__":  # : -> None
         
         combine_hdf5(hdf5_files, output_file)
     else:
-        combine_measurement_files(whiskers_files, measurement_files, output_file, video_filename=video_filename)
+        # if -f is not provided, combine whiskers and measurement files and save to output file
+        if args.feature is None:
+            combine_measurement_files(whiskers_files, measurement_files, output_file, video_filename=video_filename)
+        else:
+            # if -f is provided, extract feature and save to output file
+            # first reassess whisker ids for each side
+            sides = ['left', 'right']
+            side_whiskers_files = {side: [f for f in whiskers_files if side in f] for side in sides}
+            updated_summary = {}
+            midpoints = {}
+            for side, files in side_whiskers_files.items():
+                # If the list is not empty, get the summary
+                if files:
+                    updated_summary[side] = lwd.get_summary(files, filter = True)
+                    if args.feature == "midpoint":
+                    # get midpoints
+                        midpoints[side] = get_midpoints(updated_summary[side])
 
-
-
-    
-
-
+            # then combine data
+            # combined_summary = combine_sides(updated_summary)
+            # Save midpoints to output_file, according to format
+            if format == "csv":
+                midpoints.to_csv(output_file, index=True)
+            elif format == "hdf5":
+                midpoints.to_hdf(output_file, key='midpoints', mode='w')
+            elif format == "npy":
+                np.save(output_file, midpoints.values)
+            else:
+                print("Format not supported")
+            
+                
+            

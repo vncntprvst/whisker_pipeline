@@ -8,7 +8,7 @@ import numpy as np
 import time
 
 import WhiskiWrap as ww
-from WhiskiWrap import load_whisker_data as lwd
+from WhiskiWrap import reassess_wid as rw
 import whiskerpad as wp
 # Check that whisk binaries are executables and update permissions if necessary
 from wwutils.whisk_permissions import update_permissions
@@ -86,6 +86,7 @@ def trace_measure(input_file, base_name, output_dir, nproc, splitUp):
             h5_filename=h5_filename,
             n_trace_processes=nproc, 
             frame_func='crop',
+            skip_stitch=True,
             face=im_side,
             # Pass arguments for the classify call
             classify={'px2mm': '0.04', 'n_whiskers': '3'},
@@ -97,7 +98,7 @@ def trace_measure(input_file, base_name, output_dir, nproc, splitUp):
         print(f'Tracking took {time_track} seconds.')
 
         # Reassess whisker IDs
-        lwd.update_wids(h5_filename)
+        rw.update_wids(h5_filename)
 
 
         ## Read hdf5 file
