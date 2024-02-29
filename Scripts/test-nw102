@@ -27,4 +27,4 @@ docker run --rm -v %file_path%:/data -v %script_path%:/scripts wanglabneuro/whis
 docker run --rm -v %file_path%:/data -v %script_path%:/scripts wanglabneuro/whisk-ww:latest python /scripts/combine_sides.py /data/WT %file_name% hdf5
 
 # test container: start it then log into it
-docker run --rm -it --name wwtest2 -v %file_path%:/data -v %script_path%:/scripts wanglabneuro/whisk-ww:latest /bin/bash
+docker run --rm -it --name wwtest -v %file_path%:/data -v %script_path%:/scripts wanglabneuro/whisk-ww:latest /bin/bash

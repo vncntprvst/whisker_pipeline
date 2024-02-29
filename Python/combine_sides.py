@@ -2,7 +2,7 @@ import os
 import glob
 import re
 import argparse
-import pandas
+import pandas as pd
 import numpy as np
 import tables
 from typing import List, Optional
@@ -71,7 +71,7 @@ def combine_hdf5(h5_files: List[str], output_file: str = 'combined.csv') -> None
     """
 
     # Initialize table to concantenate tables
-    combined_table = pandas.DataFrame()
+    combined_table = pd.DataFrame()
     num_wids = 0
 
     # Loop through hdf5 files
@@ -84,7 +84,7 @@ def combine_hdf5(h5_files: List[str], output_file: str = 'combined.csv') -> None
         table['wid'] = table['wid'] + num_wids
 
         # Add table to combined table
-        combined_table = pandas.concat([combined_table, table], ignore_index=True)
+        combined_table = pd.concat([combined_table, table], ignore_index=True)
 
         # Find number of unique whisker ids
         unique_wids = combined_table['wid'].unique() 
@@ -111,7 +111,7 @@ def combine_hdf5(h5_files: List[str], output_file: str = 'combined.csv') -> None
         # Save combined table to csv file
         combined_table.to_csv(output_file, index=False)
         
-def sort_table(combined_table: pandas.DataFrame):
+def sort_table(combined_table: pd.DataFrame):
     """ Sort combined table by frame id and whisker id.
     """
     # Sort combined table by frame id and whisker id
@@ -129,7 +129,7 @@ def combine_sides(summary):
     """ Combine left and right sides of the face.
     """
     # Concatenate all sides
-    combined_summary = pandas.concat(summary.values(), ignore_index=True)
+    combined_summary = pd.concat(summary.values(), ignore_index=True)
     # Sort combined table by frame id and whisker id
     combined_summary = combined_summary.sort_values(by=['fid', 'wid'])
 
@@ -146,6 +146,8 @@ def get_midpoints(summary):
     summary = sort_table(summary)
     # For each frame, find the median angle for each frame
     median_angles = summary.groupby('fid')['angle'].median()
+    # make it a dataframe with two columns: fid, angle
+    median_angles = median_angles.reset_index()
 
     return median_angles
 
@@ -204,20 +206,28 @@ if __name__ == "__main__":  # : -> None
             sides = ['left', 'right']
             side_whiskers_files = {side: [f for f in whiskers_files if side in f] for side in sides}
             updated_summary = {}
-            midpoints = {}
+            # midpoints = {}
+            midpoints_df = pd.DataFrame()
+
+            # Loop through sides
             for side, files in side_whiskers_files.items():
                 # If the list is not empty, get the summary
                 if files:
                     updated_summary[side] = lwd.get_summary(files, filter = True)
                     if args.feature == "midpoint":
-                    # get midpoints
-                        midpoints[side] = get_midpoints(updated_summary[side])
+                        # get midpoints
+                        midpoints = get_midpoints(updated_summary[side])
+                        # Rename column 'angle' to 'midpoint_{side}'
+                        midpoints = midpoints.rename(columns={'angle': f'midpoint_{side}'})
+                        # Convert the midpoints to a DataFrame and join it with the existing DataFrame
+                        if midpoints_df.empty:
+                            midpoints_df = pd.DataFrame(midpoints)
+                        else:
+                            midpoints_df = midpoints_df.merge(pd.DataFrame(midpoints), on='fid', how='outer')
 
-            # then combine data
-            # combined_summary = combine_sides(updated_summary)
             # Save midpoints to output_file, according to format
             if format == "csv":
-                midpoints.to_csv(output_file, index=True)
+                midpoints_df.to_csv(output_file, index=True)
             elif format == "hdf5":
                 midpoints.to_hdf(output_file, key='midpoints', mode='w')
             elif format == "npy":

@@ -8,7 +8,7 @@ import numpy as np
 import time
 
 import WhiskiWrap as ww
-from WhiskiWrap import reassess_wid as rw
+from WhiskiWrap import load_whisker_data as lwd
 import whiskerpad as wp
 # Check that whisk binaries are executables and update permissions if necessary
 from wwutils.whisk_permissions import update_permissions
@@ -98,8 +98,7 @@ def trace_measure(input_file, base_name, output_dir, nproc, splitUp):
         print(f'Tracking took {time_track} seconds.')
 
         # Reassess whisker IDs
-        rw.update_wids(h5_filename)
-
+        # lwd.update_wids(h5_filename) -- no need, and can't work because relies on hdf5 summary table
 
         ## Read hdf5 file
         # from ww.base import read_whiskers_hdf5_summary

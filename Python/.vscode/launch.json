@@ -11,7 +11,7 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "python": "/home/miniconda3/envs/WhiskiWrap/bin/python",
-            "args": [ "/data/WT","MRN-TelC2-wholeW_10sWhisking.mp4","npy","-f","midpoint"
+            "args": [ "/data/WT","MRN-TelC2-wholeW_10sWhisking.mp4","csv","-o","/data","-f","midpoint"
                 // "/data/MRN-TelC2-wholeW_10sWhisking.mp4","-s","-b","MRN-TelC","-p","16"
             ],
             "justMyCode": false

@@ -6,21 +6,28 @@ ffmpeg -ss 00:01:30 -i sc016_0630_001_TopCam0.mp4 -ss 00:00:00 -t 00:00:10 -c co
 mv test E:\test
 cd E:\test
 
+cd E:\mw_test
+ffmpeg -ss 00:01:30 -i MRN-TelC2-wholeW_TopCam0.mp4 -ss 00:00:00 -t 00:00:10 -c copy MRN-TelC2-wholeW_10sWhisking.mp4
+
+
 # In Environment
 conda activate whisker_tracking
 set file_path="E:\test\sc016_0630_001_10sWhisking.mp4"
 python C:\Code\whisker_pipeline\Python\wt_trace_measure.py %file_path% -s -p 16
 
 # With Docker
-set file_path="E:\test"
-set file_name="sc016_0630_001_10sWhisking.mp4"
-set base_name="sc016_0630_001"
+@REM set file_path="E:\test\midpoint"
+@REM set file_name="sc016_0630_001_10sWhisking.mp4"
+@REM set base_name="sc016_0630_001"
+set file_path="E:\mw_test"
+set file_name="MRN-TelC2-wholeW_10sWhisking.mp4"
+set base_name="MRN-TelC2"
 set script_path="C:\Code\whisker_pipeline\Python"
 set nproc=16
 
-docker run --rm -v %file_path%:/data -v %script_path%:/scripts wanglabneuro/whisk-ww:latest python /scripts/wt_trace_measure.py /data/%file_name% -s -b %base_name% -p %nproc%
+docker run --rm -v %file_path%:/data -v %script_path%:/scripts wanglabneuro/whisk-ww:latest python /scripts/wt_trace_measure_no_stitch.py /data/%file_name% -s -b %base_name% -p %nproc%
 
-docker run --rm -v %file_path%:/data -v %script_path%:/scripts wanglabneuro/whisk-ww:latest python /scripts/combine_sides.py /data/WT %file_name% hdf5
+docker run --rm -v %file_path%:/data -v %script_path%:/scripts wanglabneuro/whisk-ww:latest python /scripts/combine_sides.py /data/WT %file_name% csv -f midpoint
 
 # Debug 
-docker run --rm -it -v %file_path%:/data -v %script_path%:/scripts wanglabneuro/whisk-ww:latest /bin/bash 
+docker run --rm -it --name wwtest -v %file_path%:/data -v %script_path%:/scripts wanglabneuro/whisk-ww:latest /bin/bash
