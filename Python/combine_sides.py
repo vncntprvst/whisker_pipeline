@@ -227,7 +227,7 @@ if __name__ == "__main__":  # : -> None
 
             # Save midpoints to output_file, according to format
             if format == "csv":
-                midpoints_df.to_csv(output_file, index=True)
+                midpoints_df.to_csv(output_file, index=False)
             elif format == "hdf5":
                 midpoints.to_hdf(output_file, key='midpoints', mode='w')
             elif format == "npy":
