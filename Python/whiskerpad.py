@@ -521,11 +521,20 @@ class WhiskerPad:
 
     @staticmethod
     def get_nose_tip_coordinates(videoFileName, video_dir=None):
-        ## Using OpenCV
-
-        # Open video file defined by videoDirectory, videoFileName 
-        # Open the video file
+        # Check that the video file exists
+        if not os.path.exists(videoFileName):
+            print("Error: Video file does not exist. Check if there is a typo in the file name or if the file is in the correct directory.")
+            print("File name: ", videoFileName)
+            print("Directory file list: ", os.listdir(os.path.dirname(videoFileName)))
+            return
+        
+        # Open the video file 
         vidcap = cv2.VideoCapture(videoFileName)
+
+        # Check that video file is open
+        if not vidcap.isOpened():
+            print("Error: Could not open video file")
+            return
         
         contour=None
         # initialFrame = -1
