@@ -29,5 +29,6 @@ docker run --rm -v %file_path%:/data -v %script_path%:/scripts wanglabneuro/whis
 
 docker run --rm -v %file_path%:/data -v %script_path%:/scripts wanglabneuro/whisk-ww:latest python /scripts/combine_sides.py /data/WT %file_name% csv -f midpoint
 
+
 # Debug 
 docker run --rm -it --name wwtest -v %file_path%:/data -v %script_path%:/scripts wanglabneuro/whisk-ww:latest /bin/bash
