@@ -63,7 +63,7 @@ def trace_measure(input_file, base_name, output_dir, nproc, splitUp):
         # Time the tracking
         start_time_track = time.time()
 
-        h5_filename = os.path.join(os.path.dirname(input_file), f'{base_name}_{side}.hdf5')
+        # h5_filename = os.path.join(os.path.dirname(input_file), f'{base_name}_{side}.hdf5')
         chunk_name_pattern = f'{base_name}_{side}_%08d.tif'
 
         # get the ImageBorderAxis for the side
@@ -83,7 +83,7 @@ def trace_measure(input_file, base_name, output_dir, nproc, splitUp):
             output_dir,
             chunk_name_pattern=chunk_name_pattern,
             chunk_size=200,
-            h5_filename=h5_filename,
+            h5_filename=None,
             n_trace_processes=nproc, 
             frame_func='crop',
             skip_stitch=True,

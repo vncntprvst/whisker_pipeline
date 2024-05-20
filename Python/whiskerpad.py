@@ -79,49 +79,8 @@ class Params:
 class WhiskerPad:
     @staticmethod
     def get_whiskerpad_params(args):
-        fp, initialFrame = WhiskerPad.get_nose_tip_coordinates(args.video_file, args.video_dir)
-        vidcap = cv2.VideoCapture(args.video_file)
-        vidcap.set(cv2.CAP_PROP_POS_FRAMES, initialFrame)
-        vidFrame = cv2.cvtColor(vidcap.read()[1], cv2.COLOR_BGR2GRAY)
-        vidcap.release()
-
-        if args.splitUp:
-            if fp.FaceAxis == 'vertical':
-                midWidth = round(vidFrame.shape[1] / 2)
-                if midWidth - vidFrame.shape[1] / 8 < fp.NoseTip[0] < midWidth + vidFrame.shape[1] / 8:
-                    # If nosetip x value within +/- 1/8 of frame width, use that value
-                    midWidth = fp.NoseTip[0]
-                
-                # Broadcast image two halves into two arrays
-                if fp.FaceOrientation == 'up':
-                    image_halves = [vidFrame[:, :midWidth], vidFrame[:, midWidth:]]
-                    image_side = ['Left', 'Right']
-                    
-                elif fp.FaceOrientation == 'down':
-                    image_halves = [vidFrame[:, midWidth:], vidFrame[:, :midWidth]]
-                    image_side = ['Right', 'Left']
-
-            elif fp.FaceAxis == 'horizontal':
-                midWidth = round(vidFrame.shape[0] / 2)
-                if midWidth - vidFrame.shape[0] / 8 < fp.NoseTip[1] < midWidth + vidFrame.shape[0] / 8:
-                    # If nosetip y value within +/- 1/8 of frame height, use that value
-                    midWidth = fp.NoseTip[1]
-                
-                # Get two half images
-                if fp.FaceOrientation == 'right':
-                    image_halves = [vidFrame[:midWidth, :], vidFrame[midWidth:, :]]
-                    image_side = ['Top', 'Bottom']
-                elif fp.FaceOrientation == 'left':
-                    image_halves = [vidFrame[midWidth:, :], vidFrame[:midWidth, :]]
-                    image_side = ['Bottom', 'Top']
-
-            # By convention, always start with the left side of the face
-            face_side = ['Left', 'Right']
-
-        else:
-            image_halves = np.array([vidFrame])
-            image_side = ['Full']
-            face_side = ['Unknown']
+        # Get the face sides
+        image_halves, image_side, face_side, fp = get_side_image(args.video_file, args.video_dir, args.splitUp)
 
         # Get whisking parameters for each side, and save them to the WhiskingParams object
         # initialize values
@@ -626,6 +585,54 @@ class WhiskerPad:
             json.dump(whiskerpad, file, indent='\t', cls=WhiskingParamsEncoder)
 
         return whiskerpad
+
+def get_side_image(video_file, splitUp, video_dir=None):
+
+    fp, initialFrame = WhiskerPad.get_nose_tip_coordinates(video_file, video_dir)
+    vidcap = cv2.VideoCapture(video_file)
+    vidcap.set(cv2.CAP_PROP_POS_FRAMES, initialFrame)
+    vidFrame = cv2.cvtColor(vidcap.read()[1], cv2.COLOR_BGR2GRAY)
+    vidcap.release()
+
+    if splitUp:
+        if fp.FaceAxis == 'vertical':
+            midWidth = round(vidFrame.shape[1] / 2)
+            if midWidth - vidFrame.shape[1] / 8 < fp.NoseTip[0] < midWidth + vidFrame.shape[1] / 8:
+                # If nosetip x value within +/- 1/8 of frame width, use that value
+                midWidth = fp.NoseTip[0]
+            
+            # Broadcast image two halves into two arrays
+            if fp.FaceOrientation == 'up':
+                image_halves = [vidFrame[:, :midWidth], vidFrame[:, midWidth:]]
+                image_side = ['Left', 'Right']
+                
+            elif fp.FaceOrientation == 'down':
+                image_halves = [vidFrame[:, midWidth:], vidFrame[:, :midWidth]]
+                image_side = ['Right', 'Left']
+
+        elif fp.FaceAxis == 'horizontal':
+            midWidth = round(vidFrame.shape[0] / 2)
+            if midWidth - vidFrame.shape[0] / 8 < fp.NoseTip[1] < midWidth + vidFrame.shape[0] / 8:
+                # If nosetip y value within +/- 1/8 of frame height, use that value
+                midWidth = fp.NoseTip[1]
+            
+            # Get two half images
+            if fp.FaceOrientation == 'right':
+                image_halves = [vidFrame[:midWidth, :], vidFrame[midWidth:, :]]
+                image_side = ['Top', 'Bottom']
+            elif fp.FaceOrientation == 'left':
+                image_halves = [vidFrame[midWidth:, :], vidFrame[:midWidth, :]]
+                image_side = ['Bottom', 'Top']
+
+        # By convention, always start with the left side of the face
+        face_side = ['Left', 'Right']
+
+    else:
+        image_halves = np.array([vidFrame])
+        image_side = ['Full']
+        face_side = ['Unknown']
+
+    return image_halves, image_side, face_side, fp
 
 if __name__ == '__main__':
     # Parse arguments
