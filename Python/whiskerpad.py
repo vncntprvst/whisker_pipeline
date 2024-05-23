@@ -89,11 +89,11 @@ class WhiskerPad:
             wp[side_id] = WhiskerPad.find_whiskerpad(image, fp, face_side=f_side, image_side=im_side, video_dir=args.video_dir)           
             wp[side_id].ImageSide = im_side
             # Set image coordinates as a tuple of image coordinates x, y, width, height
-            if im_side == 'Left' or im_side == 'Top':
+            if im_side == 'left' or im_side == 'top':
                 wp[side_id].ImageCoordinates = tuple([0, 0, image.shape[1], image.shape[0]])
-            elif im_side == 'Right':
+            elif im_side == 'right':
                     wp[side_id].ImageCoordinates = tuple([fp.NoseTip[0], 0, image.shape[1], image.shape[0]])
-            elif im_side == 'Bottom':
+            elif im_side == 'bottom':
                     wp[side_id].ImageCoordinates = tuple([0, fp.NoseTip[1], image.shape[1], image.shape[0]])
             wp[side_id].ImageBorderAxis, wp[side_id].ProtractionDirection, wp[side_id].LinkingDirection = WhiskerPad.get_whisking_params(wp[side_id])
 
@@ -124,18 +124,18 @@ class WhiskerPad:
             
             # Get whisking parameters for left side
             leftImage = vidFrame[:, :midWidth]
-            # whiskingParams = WhiskerPad.get_whisking_params(leftImage, midWidth - round(vidFrame.shape[1] / 2), fp.NoseTip, fp.FaceAxis=None, face_orientation=None, image_side='Left', interactive=True)
-            wpCoordinates, wpLocation, wpRelativeLocation = WhiskerPad.find_whiskerpad_interactive(leftImage, midWidth - round(vidFrame.shape[1] / 2), fp.NoseTip, face_axis=None, face_orientation=None, image_side='Left')
+            # whiskingParams = WhiskerPad.get_whisking_params(leftImage, midWidth - round(vidFrame.shape[1] / 2), fp.NoseTip, fp.FaceAxis=None, face_orientation=None, image_side='left', interactive=True)
+            wpCoordinates, wpLocation, wpRelativeLocation = WhiskerPad.find_whiskerpad_interactive(leftImage, midWidth - round(vidFrame.shape[1] / 2), fp.NoseTip, face_axis=None, face_orientation=None, image_side='left')
             
             # Save values to whiskingParams 
             TBD
             # Get whisking parameters for right side
             rightImage = vidFrame[:, midWidth:]
-            # whiskingParams[1] = WhiskerPad.get_whisking_params(rightImage, round(vidFrame.shape[1] / 2) - midWidth, fp.NoseTip, face_axis=None, face_orientation=None, image_side='Right', interactive=True)
-            wpCoordinates, wpLocation, wpRelativeLocation = WhiskerPad.find_whiskerpad_interactive(rightImage, midWidth - round(vidFrame.shape[1] / 2), fp.NoseTip, face_axis=None, face_orientation=None, image_side='Right')
+            # whiskingParams[1] = WhiskerPad.get_whisking_params(rightImage, round(vidFrame.shape[1] / 2) - midWidth, fp.NoseTip, face_axis=None, face_orientation=None, image_side='right', interactive=True)
+            wpCoordinates, wpLocation, wpRelativeLocation = WhiskerPad.find_whiskerpad_interactive(rightImage, midWidth - round(vidFrame.shape[1] / 2), fp.NoseTip, face_axis=None, face_orientation=None, image_side='right')
             
-            whiskingParams[0].ImageSide = 'Left'
-            whiskingParams[1].ImageSide = 'Right'
+            whiskingParams[0].ImageSide = 'left'
+            whiskingParams[1].ImageSide = 'right'
 
         return whiskingParams, args.splitUp
             
@@ -286,7 +286,7 @@ class WhiskerPad:
         keep_wp_location = False
         if fp_wp.FaceAxis == 'vertical':
                 # Adjust nose tip coordinates if needed
-                if (fp_wp.FaceOrientation == 'down' and face_side == 'Left') or (fp_wp.FaceOrientation == 'up' and face_side == 'Right'):
+                if (fp_wp.FaceOrientation == 'down' and face_side == 'left') or (fp_wp.FaceOrientation == 'up' and face_side == 'right'):
                     fp_wp.NoseTip[0] = 0
                 else:
                     fp_wp.NoseTip[0] = topviewImage.shape[1]
@@ -294,7 +294,7 @@ class WhiskerPad:
 
         elif fp_wp.FaceAxis == 'horizontal':
                 # Adjust nose tip coordinates if needed
-                if (fp_wp.FaceOrientation == 'left' and face_side == 'Left') or (fp_wp.FaceOrientation == 'right' and face_side == 'Right'):
+                if (fp_wp.FaceOrientation == 'left' and face_side == 'left') or (fp_wp.FaceOrientation == 'right' and face_side == 'right'):
                     fp_wp.NoseTip[1] = 0
                 else:
                     fp_wp.NoseTip[1] = topviewImage.shape[0]
@@ -604,11 +604,11 @@ def get_side_image(video_file, splitUp, video_dir=None):
             # Broadcast image two halves into two arrays
             if fp.FaceOrientation == 'up':
                 image_halves = [vidFrame[:, :midWidth], vidFrame[:, midWidth:]]
-                image_side = ['Left', 'Right']
+                image_side = ['right', 'left']
                 
             elif fp.FaceOrientation == 'down':
                 image_halves = [vidFrame[:, midWidth:], vidFrame[:, :midWidth]]
-                image_side = ['Right', 'Left']
+                image_side = ['left', 'right']
 
         elif fp.FaceAxis == 'horizontal':
             midWidth = round(vidFrame.shape[0] / 2)
@@ -619,13 +619,13 @@ def get_side_image(video_file, splitUp, video_dir=None):
             # Get two half images
             if fp.FaceOrientation == 'right':
                 image_halves = [vidFrame[:midWidth, :], vidFrame[midWidth:, :]]
-                image_side = ['Top', 'Bottom']
+                image_side = ['bottom', 'top']
             elif fp.FaceOrientation == 'left':
                 image_halves = [vidFrame[midWidth:, :], vidFrame[:midWidth, :]]
-                image_side = ['Bottom', 'Top']
+                image_side = ['top', 'bottom']
 
         # By convention, always start with the left side of the face
-        face_side = ['Left', 'Right']
+        face_side = ['left', 'right']
 
     else:
         image_halves = np.array([vidFrame])

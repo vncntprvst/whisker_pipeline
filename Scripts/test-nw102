@@ -12,12 +12,12 @@ set file_path="E:\whisker_asym\test\sc016_0630_001_30sWhisking.mp4"
 python C:\Code\whisker_pipeline\Python\wt_trace_measure.py %file_path% -s -p 8
 
 # With Docker
-@REM set file_path="E:\whisker_asym\test"
-@REM set file_name="sc016_0630_001_30sWhisking.mp4"
-@REM set base_name="sc016_0630_001"
-set file_path="E:\mw_test"
-set file_name="MRN-TelC2-wholeW_10sWhisking.mp4"
-set base_name="MRN-TelC2"
+set file_path="E:\whisker_asym\test"
+set file_name="sc016_0630_001_30sWhisking.mp4"
+set base_name="sc016_0630_001"
+@REM set file_path="E:\mw_test"
+@REM set file_name="MRN-TelC2-wholeW_10sWhisking.mp4"
+@REM set base_name="MRN-TelC2"
 set script_path="C:\Code\WhiskerTracking\whiskerpipeline\Python"
 set nproc=16
 
