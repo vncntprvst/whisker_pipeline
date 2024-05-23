@@ -9,8 +9,8 @@ dependencies:
   - pytables
   - statsmodels
   - opencv
-  - ffmpeg-python
   - pip
   - pip:
+    - ffmpeg-python
     - WhiskiWrap
 

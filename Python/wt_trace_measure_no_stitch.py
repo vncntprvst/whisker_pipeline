@@ -10,6 +10,8 @@ import time
 import WhiskiWrap as ww
 from WhiskiWrap import load_whisker_data as lwd
 import whiskerpad as wp
+import wt_single_frame as wtsf
+
 # Check that whisk binaries are executables and update permissions if necessary
 from wwutils.whisk_permissions import update_permissions
 update_permissions()
@@ -52,6 +54,9 @@ def trace_measure(input_file, base_name, output_dir, nproc, splitUp):
 
     # Get side types (left / right or top / bottom)
     side_types = [whiskerpad['FaceSide'].lower() for whiskerpad in whiskerpad_params['whiskerpads']]
+    
+    # Track whiskers on first frame
+    wtsf.track_whiskers(input_file, whiskerpad_params, splitUp, base_name, output_dir)
 
     ########################
     ### Run whisker tracking
