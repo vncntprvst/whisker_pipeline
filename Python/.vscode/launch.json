@@ -11,7 +11,8 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "python": "/home/miniconda3/envs/WhiskiWrap/bin/python",
-            "args": ["/data/MRN1_TopCam0.mp4", "-s","-b", "MRN1","-p", "16"
+            "args": ["/data/sc016_0630_001_30sWhisking.mp4","-b","sc016_0630_001","-s","-p","40"
+                // "/data/MRN1_TopCam0.mp4", "-s","-b", "MRN1","-p", "16"
                 // "/data/WT","MRN-TelC2-wholeW_10sWhisking.mp4","csv","-o","/data","-f","midpoint"
                 // "/data/MRN-TelC2-wholeW_10sWhisking.mp4","-s","-b","MRN-TelC","-p","16"
             ],

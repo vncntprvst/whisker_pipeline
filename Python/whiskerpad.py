@@ -80,7 +80,7 @@ class WhiskerPad:
     @staticmethod
     def get_whiskerpad_params(args):
         # Get the face sides
-        image_halves, image_side, face_side, fp = get_side_image(args.video_file, args.video_dir, args.splitUp)
+        image_halves, image_side, face_side, fp = get_side_image(args.video_file, args.splitUp, args.video_dir)
 
         # Get whisking parameters for each side, and save them to the WhiskingParams object
         # initialize values
@@ -604,11 +604,11 @@ def get_side_image(video_file, splitUp, video_dir=None):
             # Broadcast image two halves into two arrays
             if fp.FaceOrientation == 'up':
                 image_halves = [vidFrame[:, :midWidth], vidFrame[:, midWidth:]]
-                image_side = ['right', 'left']
+                image_side = ['left', 'right']
                 
             elif fp.FaceOrientation == 'down':
                 image_halves = [vidFrame[:, midWidth:], vidFrame[:, :midWidth]]
-                image_side = ['left', 'right']
+                image_side = ['right', 'left']
 
         elif fp.FaceAxis == 'horizontal':
             midWidth = round(vidFrame.shape[0] / 2)
@@ -619,10 +619,10 @@ def get_side_image(video_file, splitUp, video_dir=None):
             # Get two half images
             if fp.FaceOrientation == 'right':
                 image_halves = [vidFrame[:midWidth, :], vidFrame[midWidth:, :]]
-                image_side = ['bottom', 'top']
+                image_side = ['top', 'bottom']
             elif fp.FaceOrientation == 'left':
                 image_halves = [vidFrame[midWidth:, :], vidFrame[:midWidth, :]]
-                image_side = ['top', 'bottom']
+                image_side = ['bottom', 'top']
 
         # By convention, always start with the left side of the face
         face_side = ['left', 'right']

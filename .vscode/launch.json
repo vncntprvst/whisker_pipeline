@@ -10,7 +10,8 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "args": [ "/mnt/md0/analysis/whisker_asym/Analysis/test/sc016_0630_001_30sWhisking.mp4","-b","sc016_0630_001","-s","-p","40"
+            "args": [ "E:\\whisker_asym\\test\\sc016_0630_001_30sWhisking.mp4","-b","sc016_0630_001","-s","-p","40" 
+                // "/mnt/md0/analysis/whisker_asym/Analysis/test/sc016_0630_001_30sWhisking.mp4","-b","sc016_0630_001","-s","-p","40"
                 // "E:\test","sc016_0630_001_10sWhisking.mp4","hdf5"
                 // "E:\test\sc016_0630_001_10sWhisking.mp4","-s","-p","16"
             ],
