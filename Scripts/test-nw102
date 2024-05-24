@@ -28,3 +28,6 @@ docker run --rm -v %file_path%:/data -v %script_path%:/scripts wanglabneuro/whis
 
 # test container: start it then log into it
 docker run --rm -it --name wwtest -v %file_path%:/data -v %script_path%:/scripts wanglabneuro/whisk-ww:latest /bin/bash
+
+set ww_path="C:\Code\WhiskerTracking\WhiskiWrap"
+docker run --rm -it --name wwtest -v %file_path%:/data -v %script_path%:/scripts -v %ww_path%:/app/WhiskiWrap wanglabneuro/whisk-ww:latest /bin/bash
