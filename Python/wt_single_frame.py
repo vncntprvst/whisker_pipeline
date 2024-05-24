@@ -24,7 +24,7 @@ import pandas as pd
 import cv2
 import matplotlib.pyplot as plt
 import WhiskiWrap as ww
-
+import whiskerpad as wp
 
 def save_image_halves(image_halves, image_side, face_side, base_name, input_dir, direction, output_dir=None):
     """
@@ -32,14 +32,14 @@ def save_image_halves(image_halves, image_side, face_side, base_name, input_dir,
     """
 
     # print each image halves side by side
-    # fig, ax = plt.subplots(1, 2, figsize=(10, 5))
-    # ax[0].imshow(image_halves[0], cmap='gray')
-    # ax[0].axis('off')
-    # ax[0].set_title(f"Face side: {face_side[0]}, Image side: {image_side[0]}")
-    # ax[1].imshow(image_halves[1], cmap='gray')
-    # ax[1].axis('off')
-    # ax[1].set_title(f"Face side: {face_side[1]}, Image side: {image_side[1]}")
-    # plt.show()
+    fig, ax = plt.subplots(1, 2, figsize=(10, 5))
+    ax[0].imshow(image_halves[0], cmap='gray')
+    ax[0].axis('off')
+    ax[0].set_title(f"Face axis: {face_side[0]}, Image side: {image_side[0]}")
+    ax[1].imshow(image_halves[1], cmap='gray')
+    ax[1].axis('off')
+    ax[1].set_title(f"Face axis: {face_side[1]}, Image side: {image_side[1]}")
+    plt.show()
 
     # Save each side as tif
     if output_dir is None:
@@ -49,11 +49,6 @@ def save_image_halves(image_halves, image_side, face_side, base_name, input_dir,
         output_file = output_dir / f'{base_name}_first_frame_{side}.tif'
         cv2.imwrite(str(output_file), image_halves[i])
 
-    # # Get side types (left / right or top / bottom) from whiskerpad json file
-    # # side_types = [whiskerpad['FaceSide'].lower() for whiskerpad in whiskerpad_params['whiskerpads']]
-    # side_types = [whiskerpad['ImageSide'].lower() for whiskerpad in whiskerpad_params['whiskerpads']]
-
-    # side_types = face_side # rotated_face_side
     side_types = image_side
 
     print(f"Side types: {side_types}, direction: {direction}")
@@ -449,22 +444,13 @@ def plot_whiskers_on_image(image_halves, side_types, direction, follicle_x, foll
     fig.savefig(output_file, bbox_inches='tight', dpi=300)
 
 
-def track_whiskers():
-    parser = argparse.ArgumentParser(description='Track whiskers on first frame of video')
-    parser.add_argument('input_file', type=str, help='Input video file')
-    parser.add_argument('whiskerpad_params', type=str, help='Whiskerpad parameters json file')
-    parser.add_argument('-s','--splitUp', type=bool, default=False, help='Whether to split up the video')
-    parser.add_argument('-b','--base_name', type=str, default=None, help='Base name for the output files')
-    parser.add_argument('-o', '--output_dir', type=str, default=None, help='Output directory')
-    args = parser.parse_args()
+def track_whiskers(input_file, whiskerpad_params, splitUp, base_name=None, output_dir=None):
+    """
+    Track whiskers on the first frame of a video
+    """
 
-    input_file = args.input_file
     input_dir = Path(input_file).parent
-    output_dir = args.output_dir
-    whiskerpad_params = args.whiskerpad_params
-    splitUp = args.splitUp
-    base_name = args.base_name
-    
+
     if base_name is None:
         base_name = Path(input_file).stem
 
@@ -479,7 +465,9 @@ def track_whiskers():
     elif fp.FaceOrientation == 'right':
         direction='east'
 
-    save_image_halves(image_halves, image_sides, face_side, base_name, input_dir, direction)
+    face_side = whiskerpad_params.ImageBorderAxis
+
+    save_image_halves(image_halves, image_sides, face_side, base_name, input_dir, direction, output_dir)
     
     # Run the whisker tracking
     run_whisker_tracking(image_halves, image_sides, base_name, output_dir)
@@ -492,4 +480,12 @@ def track_whiskers():
     
 
 if __name__ == '__main__':
-    track_whiskers()
+    parser = argparse.ArgumentParser(description='Track whiskers on first frame of video')
+    parser.add_argument('input_file', type=str, help='Input video file')
+    parser.add_argument('whiskerpad_params', type=str, help='Whiskerpad parameters json file')
+    parser.add_argument('-s','--splitUp', type=bool, default=False, help='Whether to split up the video')
+    parser.add_argument('-b','--base_name', type=str, default=None, help='Base name for the output files')
+    parser.add_argument('-o', '--output_dir', type=str, default=None, help='Output directory')
+    args = parser.parse_args()
+
+    track_whiskers(args.input_file, args.whiskerpad_params, args.splitUp, args.base_name, args.output_dir)

@@ -21,7 +21,40 @@ import pandas as pd
 import copy
 
 class WhiskingParams:
+    """
+    Class for storing whisking parameters for a whisker pad
+    """
     def __init__(self, wpArea, wpLocation, wpRelativeLocation, fp=None):
+        """
+        Initialize the whisking parameters object
+
+        Parameters
+        ----------
+        wpArea : list
+            List of 4 integers representing the whisker pad area coordinates (x, y, width, height)
+        wpLocation : list
+            List of 2 integers representing the whisker pad location (x, y)
+        wpRelativeLocation : list
+            List of 2 floats representing the whisker pad relative location (x, y)
+        fp : FaceParams
+            Face parameters object containing the face axis, face orientation, face side, nose tip and midline offset
+
+        The whisking parameters object contains the following attributes:
+        FaceAxis : str. The axis of the face (horizontal or vertical)
+        FaceOrientation : str. The orientation of the face (up, down, left, right)
+        FaceSide : str. The side of the face (left, right)
+        NoseTip : list. The coordinates of the nose tip (x, y)
+        MidlineOffset : int. The offset of the midline from the center of the image
+        AreaCoordinates : list. The coordinates of the whisker pad area (x, y, width, height)
+        Location : list. The coordinates of the whisker pad location (x, y)
+        RelativeLocation : list. The relative coordinates of the whisker pad location (x, y) w/r to the image dimensions
+        ImageSide : str. The side of the image (left, right, top, bottom)
+        ImageBorderAxis : str. The image border corresponding to the long axis of the face, if any (top, bottom, left, right) 
+        ProtractionDirection : str. The protraction direction of the whisker pad (upward, downward, leftward, rightward)
+        LinkingDirection : str. The linking direction of the whisker pad (rostral, caudal)
+        ImageCoordinates : list. The coordinates of the image if cropped (x, y, width, height)
+        """
+
         if fp is not None:
             self.FaceAxis = fp.FaceAxis
             self.FaceOrientation = fp.FaceOrientation
@@ -38,7 +71,13 @@ class WhiskingParams:
         self.ImageCoordinates = []
 
 class WhiskingParamsEncoder(json.JSONEncoder):
+    """
+    JSON encoder for WhiskingParams objects
+    """
     def default(self, obj):
+        """
+        Convert WhiskingParams object to a dictionary for JSON serialization
+        """
         if isinstance(obj, WhiskingParams):
             # Convert WhiskingParams object to a dictionary
             params_dict = obj.__dict__.copy()
@@ -55,7 +94,29 @@ class WhiskingParamsEncoder(json.JSONEncoder):
         return super().default(obj)
 
 class FaceParams:
+    """
+    Class for storing face parameters
+    """
     def __init__(self, face_axis, face_orientation, face_side=None, nose_tip=None, midline_offset=0):
+        """
+        Initialize the face parameters object
+
+        Parameters
+        ----------
+        face_axis : str. The axis of the face (horizontal or vertical)
+        face_orientation : str. The orientation of the face (up, down, left, right)
+        face_side : str. The side of the face (left, right)
+        nose_tip : list. The coordinates of the nose tip (x, y)
+        midline_offset : int. The offset of the midline from the center of the image
+
+        The face parameters object contains the following attributes:
+        FaceAxis : str. The axis of the face (horizontal or vertical)
+        FaceOrientation : str. The orientation of the face (up, down, left, right)
+        FaceSide : str. The side of the face (left, right)
+        NoseTip : list. The coordinates of the nose tip (x, y)
+        MidlineOffset : int. The offset of the midline from the center of the image
+        """
+
         self.FaceAxis = face_axis
         self.FaceOrientation = face_orientation
         self.FaceSide = face_side
@@ -66,7 +127,28 @@ class FaceParams:
         return copy.deepcopy(self)
     
 class Params:
+    """
+    Class for storing parameters for whisker pad extraction
+    """
     def __init__(self, video_file, splitUp=False, basename=None, interactive=False):
+        """
+        Initialize the parameters object
+
+        Parameters
+        ----------
+        video_file : str. The path to the video file
+        splitUp : bool. Whether to split the video into left and right sides
+        basename : str. The basename of the video file
+        interactive : bool. Whether to run in interactive mode
+
+        The parameters object contains the following attributes:
+        video_file : str. The path to the video file
+        basename : str. The basename of the video file
+        video_dir : str. The directory containing the video file
+        splitUp : bool. Whether to split the video into left and right sides
+        interactive : bool. Whether to run in interactive mode
+        """
+
         self.video_file = video_file
         if basename is None:
             self.basename = os.path.splitext(os.path.basename(video_file))[0]
@@ -77,8 +159,24 @@ class Params:
         self.interactive = interactive
 
 class WhiskerPad:
+    """
+    Class for extracting whisker pad coordinates from video files
+    """
     @staticmethod
     def get_whiskerpad_params(args):
+        """
+        Get whisker pad parameters from video file
+
+        Parameters
+        ----------
+        args : Params. The parameters object containing the video file, splitUp flag, and basename
+
+        Returns
+        -------
+        whiskingParams : list. A list of WhiskingParams objects containing the whisker pad parameters
+        splitUp : bool. Whether to split the video into left and right sides
+        """
+
         # Get the face sides
         image_halves, image_side, face_side, fp = get_side_image(args.video_file, args.splitUp, args.video_dir)
 
@@ -587,6 +685,22 @@ class WhiskerPad:
         return whiskerpad
 
 def get_side_image(video_file, splitUp, video_dir=None):
+    """
+    Get the left and right side images of the face
+
+    Parameters
+    ----------
+    video_file : str. The path to the video file
+    splitUp : bool. Whether to split the video into left and right sides
+    video_dir : str. The directory containing the video file
+
+    Returns
+    -------
+    image_halves : list. A list of the left and right side images
+    image_side : list. A list of the side names
+    face_side : list. A list of the face side names
+    fp : FaceParams. The face parameters
+    """
 
     fp, initialFrame = WhiskerPad.get_nose_tip_coordinates(video_file, video_dir)
     vidcap = cv2.VideoCapture(video_file)
