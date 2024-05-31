@@ -244,7 +244,7 @@ def compare_whisker_lengths(whisker_data, wmeas, side_types):
         
     # if mean diff is >1 for either side, raise an error
     for face_side in side_types:
-        if np.mean(np.abs(whisker_lengths_diff[face_side])) > 1:
+        if np.median(np.abs(whisker_lengths_diff[face_side])) > 1:
             raise ValueError(f"Mean difference between .whisker and .measurement files' whisker lengths for {face_side} face side is greater than 1 pixel.")
         
     # Print arrays

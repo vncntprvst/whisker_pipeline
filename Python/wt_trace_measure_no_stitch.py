@@ -16,12 +16,13 @@ import wt_single_frame as wtsf
 from wwutils.whisk_permissions import update_permissions
 update_permissions()
 
-def estimate_num_whiskers(whisker_scores, side_types):
+def estimate_num_whiskers(whisker_scores, whisker_lengths, side_types):
     # Find how many whiskers with scores above 0.5 on each side of the face
     num_whiskers = {}
     for side in side_types:
-        print(f'Number of whiskers with scores above 0.5 on {side} side: {np.sum(whisker_scores[side]>0.5)}')
-        num_whiskers[side] = np.sum(whisker_scores[side]>0.5)
+        print(f'Number of whiskers with scores above 0.2 on {side} side: {np.sum(whisker_scores[side]>0.2)}')
+        print(f'Number of whiskers with lengths above 50% of the maximum length on {side} side: {np.sum(whisker_lengths[side]>0.5*np.max(whisker_lengths[side]))}')
+        num_whiskers[side] = np.sum((whisker_scores[side]>0.2) & (whisker_lengths[side]>0.5*np.max(whisker_lengths[side])))
         
     return num_whiskers
 
@@ -30,28 +31,45 @@ def estimate_px2mm(whisker_ids, whisker_scores, whisker_lengths, follicle_x, fol
     Estimate the px2mm conversion factor using the distance between the follicle of the first two whiskers
     """
     # Keep whisker_ids with score > 0.5 
-    keep_whisker_idx = {side: whisker_scores[side] > 0.5 for side in side_types}
+    keep_whisker_idx = {side: (whisker_scores[side] > 0.2) & (whisker_lengths[side] > 0.5*np.max(whisker_lengths[side])) for side in side_types}
     keep_whisker_ids = {side: whisker_ids[side][keep_whisker_idx[side]] for side in side_types}
     keep_whisker_scores = {side: whisker_scores[side][keep_whisker_idx[side]] for side in side_types}
     keep_whisker_lengths = {side: np.array(whisker_lengths[side])[keep_whisker_idx[side]] for side in side_types}
     keep_follicle_x = {side: np.array(follicle_x[side])[keep_whisker_ids[side]] for side in side_types}
     keep_follicle_y = {side: np.array(follicle_y[side])[keep_whisker_ids[side]] for side in side_types}
         
-    # Order them by follicle position from rostral to caudal, using either follicle_x or follicle_y depending on the face orientation (see whiskerpad_params)
-    ordered_whisker_ids = {side: keep_whisker_ids[side][np.argsort(keep_follicle_x[side])] if whiskerpad_params['whiskerpads'][0]['FaceAxis'] == 'horizontal' else keep_whisker_ids[side][np.argsort(keep_follicle_y[side])] for side in side_types}
-    
+    # Order them by follicle position from caudal to rostral, using either follicle_x or follicle_y depending on the face orientation and axis
+    ordered_whisker_ids = {}
+    for side in side_types:
+        if whiskerpad_params['whiskerpads'][0]['FaceAxis'] == 'horizontal':
+            if whiskerpad_params['whiskerpads'][0]['FaceOrientation'] == 'right':
+                ordered_whisker_ids[side] = np.argsort(keep_follicle_x[side])
+            else:
+                ordered_whisker_ids[side] = np.argsort(keep_follicle_x[side])[::-1]
+        else:
+            if whiskerpad_params['whiskerpads'][0]['FaceOrientation'] == 'down':
+                ordered_whisker_ids[side] = np.argsort(keep_follicle_y[side])
+            else:
+                ordered_whisker_ids[side] = np.argsort(keep_follicle_y[side])[::-1]
+
     # Compute the absolute distance between the follicles of the first two whiskers on each side
-    distances = {side: np.abs(keep_follicle_x[side][ordered_whisker_ids[side]][1] - keep_follicle_x[side][ordered_whisker_ids[side]][0]) if whiskerpad_params['whiskerpads'][0]['FaceAxis'] == 'horizontal' else np.abs(keep_follicle_y[side][ordered_whisker_ids[side]][1] - keep_follicle_y[side][ordered_whisker_ids[side]][0]) for side in side_types}
+    distances = {side: np.abs(keep_follicle_x[side][ordered_whisker_ids[side]][1] - keep_follicle_x[side][ordered_whisker_ids[side]][0]) 
+                 if whiskerpad_params['whiskerpads'][0]['FaceAxis'] == 'horizontal' 
+                 else np.abs(keep_follicle_y[side][ordered_whisker_ids[side]][1] - keep_follicle_y[side][ordered_whisker_ids[side]][0]) 
+                 for side in side_types}
     
-    # Compute the px2mm conversion factor using the distance and the image coordinates in pixels. Assume ~1.5mm distance between the two whisker follicles. Use the mean of the two sides.
+    # Compute the px2mm conversion factor using the distance and the image coordinates in pixels. 
+    # Assume ~1.5mm distance between the two whisker follicles. Use the mean of the two sides.
     fol_dist_mm = 1.5
     fol_dist_px = np.mean([distances[side] for side in side_types])
     # round to 2 decimals
     px2mm = round(fol_dist_mm / fol_dist_px, 2)
     # If the px2mm conversion factor is too high or too low, use default 0.04
-    if px2mm < 0.01 or px2mm > 0.05:
+    if px2mm < 0.01 or px2mm > 0.15:
         px2mm = 0.04
-    print(f'Pixel to mm conversion factor: {px2mm}')
+        print(f'Pixel to mm conversion factor set to default: {px2mm}')
+    else:
+        print(f'Pixel to mm conversion factor estimated: {px2mm}')
     
     return px2mm
 
@@ -97,7 +115,7 @@ def trace_measure(input_file, base_name, output_dir, nproc, splitUp):
     # Track whiskers on first frame
     whisker_ids, whisker_lengths, whisker_scores, follicle_x, follicle_y = wtsf.track_whiskers(input_file, whiskerpad_params, splitUp, base_name, output_dir)
     
-    num_whiskers = estimate_num_whiskers(whisker_scores, side_types)
+    num_whiskers = estimate_num_whiskers(whisker_scores, whisker_lengths, side_types)
         
     px2mm = estimate_px2mm(whisker_ids, whisker_scores, whisker_lengths, follicle_x, follicle_y, whiskerpad_params, side_types)
      
@@ -128,44 +146,24 @@ def trace_measure(input_file, base_name, output_dir, nproc, splitUp):
         # The `face` argument below is the side of the video frame where the face is located. 
         # That tells `measure` which side of traced objects should be considered the follicle.
         result_dict = ww.interleaved_split_trace_and_measure(            
-            ww.FFmpegReader(input_file, crop=side_im_coord),
-            output_dir,
-            chunk_name_pattern=chunk_name_pattern,
-            chunk_size=200,
-            h5_filename=None,
-            n_trace_processes=nproc, 
-            frame_func='crop',
-            skip_stitch=True,
-            face=im_side,
-            # Pass arguments for the classify call
-            classify={'px2mm': px2mm, 'n_whiskers': num_whiskers[side]},
-            summary_only = True,
-            skip_existing=True
-        )      
+                            ww.FFmpegReader(input_file, 
+                                            crop = side_im_coord),
+                            output_dir,
+                            chunk_name_pattern = chunk_name_pattern,
+                            chunk_size = 200,
+                            h5_filename = None,
+                            n_trace_processes = nproc, 
+                            frame_func = 'crop',
+                            skip_stitch = True,
+                            face = im_side,
+                            # Pass arguments for the classify call
+                            classify = {'px2mm': str(px2mm), 'n_whiskers': str(num_whiskers[side])},
+                            summary_only = True,
+                            skip_existing = True
+                        )      
 
         time_track = time.time() - start_time_track
         print(f'Tracking took {time_track} seconds.')
-
-        # Reassess whisker IDs
-        # lwd.update_wids(h5_filename) -- no need, and can't work because relies on hdf5 summary table
-
-        ## Read hdf5 file
-        # from ww.base import read_whiskers_hdf5_summary
-        # h5_filename='/data/dev/sc014_0315_001_left.hdf5'
-        # table = read_whiskers_hdf5_summary(h5_filename)
-        # print(table.head())
-
-        # import pandas
-        # import tables
-
-        # with tables.open_file(h5_filename) as fi:
-        #     summary = pandas.DataFrame.from_records(fi.root.summary.read())
-
-        # print(summary.head())
-
-        # fi=tables.open_file(h5_filename)
-    
-
 
     # Overall time elapsed
     time_elapsed = time.time() - start_time
