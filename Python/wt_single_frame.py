@@ -26,50 +26,42 @@ import matplotlib.pyplot as plt
 import WhiskiWrap as ww
 import whiskerpad as wp
 
-def save_image_halves(image_halves, image_side, face_side, base_name, input_dir, direction, output_dir=None):
+def save_image_halves(image_halves, image_sides, face_sides, base_name, input_dir, direction, output_dir=None):
     """
     Save image halves as tif files
     """
-
-    # print each image halves side by side
-    fig, ax = plt.subplots(1, 2, figsize=(10, 5))
-    ax[0].imshow(image_halves[0], cmap='gray')
-    ax[0].axis('off')
-    ax[0].set_title(f"Face axis: {face_side[0]}, Image side: {image_side[0]}")
-    ax[1].imshow(image_halves[1], cmap='gray')
-    ax[1].axis('off')
-    ax[1].set_title(f"Face axis: {face_side[1]}, Image side: {image_side[1]}")
-    plt.show()
-
-    # Save each side as tif
     if output_dir is None:
-        output_dir = input_dir / f"frame_0_whiskers"
+        output_dir = Path(input_dir) / "frame_0_whiskers"
     output_dir.mkdir(exist_ok=True)
-    for i, side in enumerate(image_side):
-        output_file = output_dir / f'{base_name}_first_frame_{side}.tif'
+    
+    fig, ax = plt.subplots(1, 2, figsize=(10, 5))
+     
+    for i, (image_half, face_side, image_side) in enumerate(zip(image_halves, face_sides, image_sides)):
+        # print each image halves side by side
+        ax[i].imshow(image_half, cmap='gray')
+        ax[i].axis('off')
+        ax[i].set_title(f"Image side: {image_side}, Face side: {face_side}")
+        
+        # Save each side as tif
+        output_file = output_dir / f'{base_name}_first_frame_face_{face_side}.tif'
         cv2.imwrite(str(output_file), image_halves[i])
 
-    side_types = image_side
+    plt.show()
+
+    side_types = face_sides
 
     print(f"Side types: {side_types}, direction: {direction}")
+    
+    return output_dir
 
 
-def run_whisker_tracking(image_halves, side_types, base_name, output_dir):
+def run_whisker_tracking(image_halves, face_sides, face_im_sides, base_name, output_dir):
 
-    for im_side in side_types:
-        # print(f'Running whisker tracking for {im_side} image side video')
-        # plt.imshow(image_halves[image_side.index(im_side)], cmap='gray')
-        # # plt.imshow(image_halves_rotated[
-        # #     rotated_face_side.index(side)], cmap='gray')
-        # plt.axis('off')
-        # plt.title(f"Face image side: {im_side}")
-        # plt.show()
-
-        image_filename = output_dir / f'{base_name}_first_frame_{im_side}.tif' 
+    for _, (face_side, face_im_side) in enumerate(zip(face_sides, face_im_sides)):
+        image_filename = output_dir / f'{base_name}_first_frame_face_{face_side}.tif' 
         tracking_results = ww.trace_and_measure_chunk(image_filename,
                                                 delete_when_done=False,
-                                                face=im_side)
-        # ,
+                                                face=face_im_side)
                                                 # classify={'px2mm': '0.04', 'n_whiskers': '3'})
     
     return tracking_results
@@ -82,12 +74,12 @@ def load_whisker_data(side_types, base_name, output_dir, save_to_csv=False):
     # Initialize the dictionary to store the whisker data for each side
     whisker_data = {}
 
-    for im_side in side_types:
-        print(f'Loading whiskers for {im_side} face side video')
-        whisk_filename = output_dir / f'{base_name}_first_frame_{im_side}.whiskers'
+    for face_side in side_types:
+        print(f'Loading whiskers for {face_side} face side video')
+        whisk_filename = output_dir / f'{base_name}_first_frame_face_{face_side}.whiskers'
         # Load whiskers
         whiskers = ww.wfile_io.Load_Whiskers(str(whisk_filename))
-        whisker_data[im_side] = whiskers
+        whisker_data[face_side] = whiskers
 
     print(f"Whisker data for {len(whisker_data)} sides loaded.")
                 
@@ -98,20 +90,20 @@ def load_whisker_data(side_types, base_name, output_dir, save_to_csv=False):
     xpixels, ypixels = {}, {}
     # whisker_ids = {}
 
-    for im_side, whiskers in whisker_data.items():
+    for face_side, whiskers in whisker_data.items():
         # Initialize lists for this side if they don't exist yet
-        if im_side not in xpixels:
-            xpixels[im_side] = []
-        if im_side not in ypixels:
-            ypixels[im_side] = []
+        if face_side not in xpixels:
+            xpixels[face_side] = []
+        if face_side not in ypixels:
+            ypixels[face_side] = []
         # if side not in whisker_ids:
         #     whisker_ids[side] = []
         
         for frame, frame_whiskers in list(whiskers.items()):
             for whisker_id, wseg in list(frame_whiskers.items()):
                 # Write whisker contour x and y pixel values
-                xpixels[im_side].append(wseg.x)
-                ypixels[im_side].append(wseg.y)
+                xpixels[face_side].append(wseg.x)
+                ypixels[face_side].append(wseg.y)
                 # whisker_ids[side].append(wseg.id)
 
     # Check how many whiskers were detected for each side
@@ -136,12 +128,12 @@ def load_whisker_data(side_types, base_name, output_dir, save_to_csv=False):
     # Create set of colors for each whisker ID
     colors = {side: plt.cm.viridis(np.linspace(0, 1, len(whisker_ids[side]))) for side in side_types}
 
-    for whisker_id, color in zip(whisker_ids[im_side], colors[im_side]):
+    for whisker_id, color in zip(whisker_ids[face_side], colors[face_side]):
         print(f"Whisker ID: {whisker_id}, color: {color}")
         
     # Save whisker lengths and scores to csv
     if save_to_csv:
-        save_to_csv(output_dir, base_name, side_types, whisker_lengths, whisker_scores)
+        save_whisker_info(output_dir, base_name, side_types, whisker_lengths, whisker_scores)
         
     return xpixels, ypixels, whisker_ids, colors, whisker_lengths, whisker_scores, follicle_x, follicle_y
 
@@ -149,19 +141,21 @@ def load_whisker_measurements(output_dir, base_name, side_types):
     """
     Load whisker measurements from measurements file
     """
+    # Initialize the dictionary to store the whisker measurements for each side
+    wmeas = {}
 
-    #  Check if measurement file exists
-    measurement_file = output_dir / f'{base_name}_first_frame_{im_side}.measurements'
-    if measurement_file.exists():
-        wmeas = {}
-
-        for im_side in side_types:
-            print(f'Loading whisker measurements for {im_side} image side video')
-            whisk_filename = output_dir / f'{base_name}_first_frame_{im_side}.whiskers'
+    for face_side in side_types:
+        #  Check if measurement file exists
+        measurement_file = output_dir / f'{base_name}_first_frame_face_{face_side}.measurements'
+        if measurement_file.exists():
+            print(f'Loading whisker measurements for {face_side} image side video')
+            whisk_filename = output_dir / f'{base_name}_first_frame_face_{face_side}.whiskers'
             # Load whiskers
-            wmeas[im_side] =ww.read_whisker_data(str(whisk_filename))
+            wmeas[face_side] = ww.read_whisker_data(str(whisk_filename))
+        else:
+            wmeas[face_side] = None
 
-    print(f"Whisker measurements for {im_side} image side: {wmeas[im_side]}")
+        print(f"Whisker measurements for {face_side} image side loaded.")
     
     return wmeas
 
@@ -187,30 +181,30 @@ def plot_whiskers_on_half_images(image_halves, side_types, whisker_ids, xpixels,
         # Remove space between subplots
         plt.subplots_adjust(wspace=-0.51, hspace=0)
 
-    for i, im_side in enumerate(side_types):
+    for i, face_side in enumerate(side_types):
         if im_orientation == 'vertical':
             ax[-(i+1)].imshow(image_halves[i], cmap='gray')
         elif im_orientation == 'horizontal':
             # ax[i].imshow(image_halves_rotated[i], cmap='gray')
             ax[i].imshow(image_halves[i], cmap='gray')
-        # for whisker_id, color in zip(whisker_ids[im_side], colors[im_side]):
-        for idx, (whisker_id, color) in enumerate(zip(whisker_ids[im_side], colors[im_side])):
+        # for whisker_id, color in zip(whisker_ids[face_side], colors[face_side]):
+        for idx, (whisker_id, color) in enumerate(zip(whisker_ids[face_side], colors[face_side])):
             # Get the whisker pixel values for this whisker ID from xpixels and ypixels
-            whisker_x = xpixels[im_side][idx] # whisker_id
-            whisker_y = ypixels[im_side][idx] # whisker_id
+            whisker_x = xpixels[face_side][idx] # whisker_id
+            whisker_y = ypixels[face_side][idx] # whisker_id
             if im_orientation == 'vertical':
                 ax[-(i+1)].plot(whisker_x, whisker_y, color=color)
             elif im_orientation == 'horizontal':
                 ax[i].plot(whisker_x, whisker_y, color=color)
         if im_orientation == 'vertical':
             ax[-(i+1)].axis('off')
-            ax[-(i+1)].set_title(f"Face image side: {im_side}")
+            ax[-(i+1)].set_title(f"Face image side: {face_side}")
         elif im_orientation == 'horizontal':    
             ax[i].axis('off')
             if i == 0:
-                ax[i].set_title(f"Face image side: {im_side}")
+                ax[i].set_title(f"Face image side: {face_side}")
             elif i == 1:
-                ax[i].text(0.5, -0.1, f"Face image side: {im_side}", size=12, ha="center", transform=ax[i].transAxes)
+                ax[i].text(0.5, -0.1, f"Face image side: {face_side}", size=12, ha="center", transform=ax[i].transAxes)
                         
     plt.show()
 
@@ -221,41 +215,41 @@ def compare_whisker_lengths(whisker_data, wmeas, side_types):
     # as sanity check, for each whisker, (on each side), compute whisker length and compare to the length in the measurements file
     # Initialize the dictionaries to store the whisker lengths for each side
     whisker_lengths, whisker_lengths_meas = {}, {}
-    for im_side in side_types:
+    for face_side in side_types:
         # Initialize lists for this side if they don't exist yet
-        if im_side not in whisker_lengths:
-            whisker_lengths[im_side] = []
+        if face_side not in whisker_lengths:
+            whisker_lengths[face_side] = []
         
-        for frame, frame_whiskers in list(whisker_data[im_side].items()):
+        for frame, frame_whiskers in list(whisker_data[face_side].items()):
             for whisker_id, wseg in list(frame_whiskers.items()):
                 # Compute whisker length
                 whisker_length = np.sqrt((wseg.x[-1] - wseg.x[0])**2 + (wseg.y[-1] - wseg.y[0])**2)
-                whisker_lengths[im_side].append(whisker_length)
+                whisker_lengths[face_side].append(whisker_length)
 
     # Compare whisker lengths to lengths in measurements file
     whisker_lengths_diff={}
-    for im_side in side_types:
-        if im_side not in whisker_lengths_meas:
-            whisker_lengths_meas[im_side] = []
+    for face_side in side_types:
+        if face_side not in whisker_lengths_meas:
+            whisker_lengths_meas[face_side] = []
         # Get whisker lengths from measurements file 
         # Sort the whisker lengths according to the sorted indices
-        sorted_indices = np.argsort(wmeas[im_side]['label'])
-        whisker_lengths_meas[im_side].append(np.array(wmeas[im_side]['length'])[sorted_indices])
+        sorted_indices = np.argsort(wmeas[face_side]['label'])
+        whisker_lengths_meas[face_side].append(np.array(wmeas[face_side]['length'])[sorted_indices])
         
         # Compare whisker lengths
-        whisker_lengths_diff[im_side] = np.array(whisker_lengths[im_side]) - np.array(whisker_lengths_meas[im_side])
+        whisker_lengths_diff[face_side] = np.array(whisker_lengths[face_side]) - np.array(whisker_lengths_meas[face_side])
                 
         # print(f"Mean difference in whisker lengths for {im_side} face side: {np.mean(whisker_lengths_diff)}")
         # print(f"Max difference in whisker lengths for {im_side} face side: {np.max(np.abs(whisker_lengths_diff))}")
         
     # if mean diff is >1 for either side, raise an error
-    for im_side in side_types:
-        if np.mean(np.abs(whisker_lengths_diff[im_side])) > 1:
-            raise ValueError(f"Mean difference between .whisker and .measurement files' whisker lengths for {im_side} face side is greater than 1 pixel.")
+    for face_side in side_types:
+        if np.mean(np.abs(whisker_lengths_diff[face_side])) > 1:
+            raise ValueError(f"Mean difference between .whisker and .measurement files' whisker lengths for {face_side} face side is greater than 1 pixel.")
         
     # Print arrays
-    # print(np.array(whisker_lengths[im_side]))
-    # print( np.array(whisker_lengths_meas[im_side]))
+    # print(np.array(whisker_lengths[face_side]))
+    # print( np.array(whisker_lengths_meas[face_side]))
     
     return whisker_lengths, whisker_lengths_meas
 
@@ -266,25 +260,25 @@ def get_whisker_scores(wmeas, side_types, whisker_lengths):
     #  print 'score' for each whisker from measurements data (wmeas), for each side. again, resort by labels
     # Initialize the dictionaries to store the whisker scores for each side
     whisker_scores = {}
-    for im_side in side_types:
+    for face_side in side_types:
         # Initialize lists for this side if they don't exist yet
-        if im_side not in whisker_scores:
-            whisker_scores[im_side] = []
+        if face_side not in whisker_scores:
+            whisker_scores[face_side] = []
         
-        sorted_indices = np.argsort(wmeas[im_side]['label'])
-        whisker_scores[im_side].append(np.array(wmeas[im_side]['score'])[sorted_indices])
+        sorted_indices = np.argsort(wmeas[face_side]['label'])
+        whisker_scores[face_side].append(np.array(wmeas[face_side]['score'])[sorted_indices])
 
     # Print whisker scores
-    for im_side in side_types:
-        print(f"Whisker lengths and scores for {im_side} image side:")
+    for face_side in side_types:
+        print(f"Whisker lengths and scores for {face_side} image side:")
         
-        for length, score in zip(whisker_lengths[im_side], whisker_scores[im_side][0]):
+        for length, score in zip(whisker_lengths[face_side], whisker_scores[face_side][0]):
             print(f"{length}, {score}")
 
     # Normalize the scores to be between 0 and 1
-    for im_side in side_types:
-        whisker_scores[im_side] = np.array(whisker_scores[im_side][0])
-        whisker_scores[im_side] = (whisker_scores[im_side] - np.min(whisker_scores[im_side])) / (np.max(whisker_scores[im_side]) - np.min(whisker_scores[im_side]))
+    for face_side in side_types:
+        whisker_scores[face_side] = np.array(whisker_scores[face_side][0])
+        whisker_scores[face_side] = (whisker_scores[face_side] - np.min(whisker_scores[face_side])) / (np.max(whisker_scores[face_side]) - np.min(whisker_scores[face_side]))
         
     return whisker_scores
 
@@ -307,42 +301,51 @@ def get_follicles(wmeas, side_types, im_orientation):
     # Get follicles
 
     follicle_x, follicle_y = {}, {}
-    for im_side in side_types:
+    for face_side in side_types:
         # Initialize lists for this side if they don't exist yet
-        if im_side not in follicle_x:
-            follicle_x[im_side] = []
-            follicle_y[im_side] = []
+        if face_side not in follicle_x:
+            follicle_x[face_side] = []
+            follicle_y[face_side] = []
         
-        sorted_indices = np.argsort(wmeas[im_side]['label'])
+        sorted_indices = np.argsort(wmeas[face_side]['label'])
         if im_orientation == 'horizontal':
-            follicle_x[im_side].append(np.array(wmeas[im_side]['follicle_x'])[sorted_indices]) #tip_x
-            follicle_y[im_side].append(np.array(wmeas[im_side]['follicle_y'])[sorted_indices]) #tip_y
+            follicle_x[face_side].append(np.array(wmeas[face_side]['follicle_x'])[sorted_indices]) #tip_x
+            follicle_y[face_side].append(np.array(wmeas[face_side]['follicle_y'])[sorted_indices]) #tip_y
         elif im_orientation == 'vertical':
-            follicle_x[im_side].append(np.array(wmeas[im_side]['follicle_x'])[sorted_indices])
-            follicle_y[im_side].append(np.array(wmeas[im_side]['follicle_y'])[sorted_indices])
+            follicle_x[face_side].append(np.array(wmeas[face_side]['follicle_x'])[sorted_indices])
+            follicle_y[face_side].append(np.array(wmeas[face_side]['follicle_y'])[sorted_indices])
 
     # Flatten the lists
-    for im_side in side_types:
-        follicle_x[im_side] = np.concatenate(follicle_x[im_side])
-        follicle_y[im_side] = np.concatenate(follicle_y[im_side])
+    for face_side in side_types:
+        follicle_x[face_side] = np.concatenate(follicle_x[face_side])
+        follicle_y[face_side] = np.concatenate(follicle_y[face_side])
         
     return follicle_x, follicle_y
 
-def save_to_csv(output_dir, base_name, side_types, whisker_lengths, whisker_scores):
+def save_whisker_info(output_dir, base_name, side_types, whisker_lengths, whisker_scores, save_format='csv'):
 
-    # Save whisker lengths and scores to csv
-    for im_side in side_types:
-        output_file = output_dir / f'{base_name}_first_frame_{im_side}_whisker_lengths_scores.csv'
-        # Convert whisker lengths and scores to dataframe and save
-        data = {'length': whisker_lengths[im_side], 'score': whisker_scores[im_side]}
-        df = pd.DataFrame(data)
-        df.to_csv(output_file, index=False)
+    if save_format == 'csv':
+        # Save whisker lengths and scores to csv
+        for face_side in side_types:
+            output_file = output_dir / f'{base_name}_first_frame_face_{face_side}_whisker_lengths_scores.csv'
+            # Convert whisker lengths and scores to dataframe and save
+            data = {'length': whisker_lengths[face_side], 'score': whisker_scores[face_side]}
+            df = pd.DataFrame(data)
+            df.to_csv(output_file, index=False)
+    else:
+        # Save whisker lengths and scores to npz
+        data = {}
+        for face_side in side_types:
+            data[f'whisker_lengths_{face_side}'] = whisker_lengths[face_side]
+            data[f'whisker_scores_{face_side}'] = whisker_scores[face_side]
+
+        output_file = output_dir / f'{base_name}_first_frame_whisker_lengths_scores.npz'
+        np.savez(output_file, **data)
         
 def plot_whiskers_on_image(image_halves, side_types, direction, follicle_x, follicle_y, whisker_ids, whisker_scores, xpixels, ypixels, colors, base_name, output_dir):
     """
     Plot whiskers for each side on the whole image
     """
-
     # define image orientation
     if 'top' in side_types or 'bottom' in side_types:
         im_orientation = 'horizontal'
@@ -359,25 +362,25 @@ def plot_whiskers_on_image(image_halves, side_types, direction, follicle_x, foll
         # Remove space between subplots
         plt.subplots_adjust(wspace=0, hspace=-0.05)
 
-    for i, im_side in enumerate(side_types):
+    for side_idx, (face_side, image_half) in enumerate(zip(side_types, image_halves)):
         if im_orientation == 'vertical':
             if direction == 'north':
-                ax[i].imshow(image_halves[i], cmap='gray')
+                ax[side_idx].imshow(image_half, cmap='gray')
             elif direction == 'south':
-                ax[-(i+1)].imshow(image_halves[i], cmap='gray')
+                ax[-(side_idx+1)].imshow(image_half, cmap='gray')
         elif im_orientation == 'horizontal':
             # ax[i].imshow(image_halves_rotated[i], cmap='gray')
             if direction == 'east':
-                ax[i].imshow(image_halves[i], cmap='gray')
+                ax[side_idx].imshow(image_half, cmap='gray')
             elif direction == 'west':
-                ax[-(i+1)].imshow(image_halves[i], cmap='gray')
+                ax[-(side_idx+1)].imshow(image_half, cmap='gray')
 
         # Plot the follicles (follicle_x, follicle_y) as circles of the same color as 
         # the corresponding whisker, with intensity defined by whisker scores
-        for fx, fy, score, color in zip(follicle_x[im_side],
-                                        follicle_y[im_side],
-                                        whisker_scores[im_side],
-                                        colors[im_side]):
+        for fx, fy, score, color in zip(follicle_x[face_side],
+                                        follicle_y[face_side],
+                                        whisker_scores[face_side],
+                                        colors[face_side]):
             # If the score is below 0.5, set the color to red
             if score < 0.5:
                 color = 'red'
@@ -386,27 +389,27 @@ def plot_whiskers_on_image(image_halves, side_types, direction, follicle_x, foll
                 alpha_level = score
             if im_orientation == 'vertical':
                 if direction == 'north':
-                    ax[i].scatter(fx, fy, s=100, c=[color], alpha=alpha_level)
+                    ax[side_idx].scatter(fx, fy, s=100, c=[color], alpha=alpha_level)
                 elif direction == 'south':
-                    ax[-(i+1)].scatter(fx, fy, s=100, c=[color], alpha=alpha_level)
+                    ax[-(side_idx+1)].scatter(fx, fy, s=100, c=[color], alpha=alpha_level)
             elif im_orientation == 'horizontal':
                 if direction == 'east':
-                    ax[i].scatter(fx, fy, s=100, c=[color], alpha=alpha_level)
+                    ax[side_idx].scatter(fx, fy, s=100, c=[color], alpha=alpha_level)
                 if direction == 'west':
-                    ax[-(i+1)].scatter(fx, fy, s=100, c=[color], alpha=alpha_level)
+                    ax[-(side_idx+1)].scatter(fx, fy, s=100, c=[color], alpha=alpha_level)
 
         # Plot the whiskers
-        # for whisker_id, score, color in zip(whisker_ids[im_side],
-        #                              whisker_scores[im_side],
-        #                              colors[im_side]):
-        for idx, (whisker_id, score, color) in enumerate(zip(whisker_ids[im_side],
-                                                                whisker_scores[im_side],
-                                                                colors[im_side])):
+        # for whisker_id, score, color in zip(whisker_ids[face_side],
+        #                              whisker_scores[face_side],
+        #                              colors[face_side]):
+        for idx, (whisker_id, score, color) in enumerate(zip(whisker_ids[face_side],
+                                                                whisker_scores[face_side],
+                                                                colors[face_side])):
             # Get the whisker pixel values for this whisker ID from xpixels and ypixels
-            whisker_x = xpixels[im_side][idx] #whisker_id
-            whisker_y = ypixels[im_side][idx] #whisker_id
+            whisker_x = xpixels[face_side][idx] #whisker_id
+            whisker_y = ypixels[face_side][idx] #whisker_id
             # If the score is below 0.5, set the color to red
-            if whisker_scores[im_side][idx] < 0.5:
+            if whisker_scores[face_side][idx] < 0.5:
                 color = 'red'
                 alpha_level = 0.1
                 # print(f"Whisker ID {whisker_id} for {side} face side has a score of {whisker_scores[side][whisker_id]}.")
@@ -415,32 +418,32 @@ def plot_whiskers_on_image(image_halves, side_types, direction, follicle_x, foll
             # alpha_level = 1
             if im_orientation == 'vertical':
                 if direction == 'north':
-                    ax[i].plot(whisker_x, whisker_y, color=color, alpha=alpha_level)
+                    ax[side_idx].plot(whisker_x, whisker_y, color=color, alpha=alpha_level)
                 elif direction == 'south':
-                    ax[-(i+1)].plot(whisker_x, whisker_y, color=color, alpha=alpha_level)
+                    ax[-(side_idx+1)].plot(whisker_x, whisker_y, color=color, alpha=alpha_level)
             elif im_orientation == 'horizontal':
                 if direction == 'east':
-                    ax[i].plot(whisker_x, whisker_y, color=color, alpha=alpha_level)
+                    ax[side_idx].plot(whisker_x, whisker_y, color=color, alpha=alpha_level)
                 elif direction == 'west':
-                    ax[-(i+1)].plot(whisker_x, whisker_y, color=color, alpha=alpha_level)
+                    ax[-(side_idx+1)].plot(whisker_x, whisker_y, color=color, alpha=alpha_level)
 
         if im_orientation == 'vertical':
-            ax[-(i+1)].axis('off')
-            ax[-(i+1)].set_title(f"Face image side: {im_side}")
+            ax[-(side_idx+1)].axis('off')
+            ax[-(side_idx+1)].set_title(f"Face side: {face_side}")
         elif im_orientation == 'horizontal':
             # ax[i].axis('off')
-            ax[-(i+1)].axis('off')
-            if i == 1:
+            ax[-(side_idx+1)].axis('off')
+            if side_idx == 1:
                 # ax[i].set_title(f"Face image side: {im_side}")
-                ax[-(i+1)].set_title(f"Face image side: {im_side}")
-            elif i == 0:
+                ax[-(side_idx+1)].set_title(f"Face side: {face_side}")
+            elif side_idx == 0:
                 # ax[i].text(0.5, -0.1, f"Face side: {im_side}", size=12, ha="center", transform=ax[i].transAxes)
-                ax[-(i+1)].text(0.5, -0.1, f"Face side: {im_side}", size=12, ha="center", transform=ax[-(i+1)].transAxes)
+                ax[-(side_idx+1)].text(0.5, -0.1, f"Face side: {face_side}", size=12, ha="center", transform=ax[-(side_idx+1)].transAxes)
             
     plt.show()
 
     # save the figure
-    output_file = output_dir / f'{base_name}_first_frame_{im_side}_{direction}_whiskers_scores.png'
+    output_file = output_dir / f'{base_name}_first_frame_whiskers_scores.png'
     fig.savefig(output_file, bbox_inches='tight', dpi=300)
 
 
@@ -450,12 +453,13 @@ def track_whiskers(input_file, whiskerpad_params, splitUp, base_name=None, outpu
     """
 
     input_dir = Path(input_file).parent
+    output_dir = Path(output_dir)
 
     if base_name is None:
         base_name = Path(input_file).stem
 
     # Save image halves as tif files
-    image_halves, image_sides, face_side, fp = wp.get_side_image(str(input_file), splitUp)
+    image_halves, image_sides, face_sides, fp = wp.get_side_image(str(input_file), splitUp)
     if fp.FaceOrientation == 'down':
         direction='south'
     elif fp.FaceOrientation == 'up':
@@ -465,18 +469,20 @@ def track_whiskers(input_file, whiskerpad_params, splitUp, base_name=None, outpu
     elif fp.FaceOrientation == 'right':
         direction='east'
 
-    face_side = whiskerpad_params.ImageBorderAxis
+    face_im_sides = [whiskerpads['ImageBorderAxis'] for whiskerpads in whiskerpad_params['whiskerpads']]
 
-    save_image_halves(image_halves, image_sides, face_side, base_name, input_dir, direction, output_dir)
+    save_image_halves(image_halves, image_sides, face_im_sides, base_name, input_dir, direction, output_dir)
     
     # Run the whisker tracking
-    run_whisker_tracking(image_halves, image_sides, base_name, output_dir)
-    
+    run_whisker_tracking(image_halves, face_sides, face_im_sides, base_name, output_dir)
+
     # Load the whisker data
-    xpix, ypix, whisker_ids, colors, whisker_lengths, whisker_scores, follicle_x, follicle_y = load_whisker_data(image_sides, base_name, output_dir, save_to_csv=True)
+    xpix, ypix, whisker_ids, colors, whisker_lengths, whisker_scores, follicle_x, follicle_y = load_whisker_data(face_sides, base_name, output_dir, save_to_csv=True)
     
     # Plot whiskers over the image for each side 
-    plot_whiskers_on_image(image_halves, image_sides, direction, follicle_x, follicle_y, whisker_ids, whisker_scores, xpix, ypix, colors, base_name, output_dir)
+    plot_whiskers_on_image(image_halves, face_sides, direction, follicle_x, follicle_y, whisker_ids, whisker_scores, xpix, ypix, colors, base_name, output_dir)
+    
+    return whisker_ids, whisker_lengths, whisker_scores, follicle_x, follicle_y
     
 
 if __name__ == '__main__':
@@ -487,5 +493,13 @@ if __name__ == '__main__':
     parser.add_argument('-b','--base_name', type=str, default=None, help='Base name for the output files')
     parser.add_argument('-o', '--output_dir', type=str, default=None, help='Output directory')
     args = parser.parse_args()
+    
+    if args.base_name is None:
+        args.base_name = Path(args.input_file).stem
+            
+    if args.output_dir is None:
+        args.output_dir = Path(args.input_file).parent / f'{Path(args.input_file).stem}_first_frame'
+    else:
+        args.output_dir = Path(args.output_dir)
 
     track_whiskers(args.input_file, args.whiskerpad_params, args.splitUp, args.base_name, args.output_dir)

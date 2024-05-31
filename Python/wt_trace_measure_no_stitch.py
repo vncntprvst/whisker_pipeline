@@ -16,6 +16,45 @@ import wt_single_frame as wtsf
 from wwutils.whisk_permissions import update_permissions
 update_permissions()
 
+def estimate_num_whiskers(whisker_scores, side_types):
+    # Find how many whiskers with scores above 0.5 on each side of the face
+    num_whiskers = {}
+    for side in side_types:
+        print(f'Number of whiskers with scores above 0.5 on {side} side: {np.sum(whisker_scores[side]>0.5)}')
+        num_whiskers[side] = np.sum(whisker_scores[side]>0.5)
+        
+    return num_whiskers
+
+def estimate_px2mm(whisker_ids, whisker_scores, whisker_lengths, follicle_x, follicle_y, whiskerpad_params, side_types):
+    """
+    Estimate the px2mm conversion factor using the distance between the follicle of the first two whiskers
+    """
+    # Keep whisker_ids with score > 0.5 
+    keep_whisker_idx = {side: whisker_scores[side] > 0.5 for side in side_types}
+    keep_whisker_ids = {side: whisker_ids[side][keep_whisker_idx[side]] for side in side_types}
+    keep_whisker_scores = {side: whisker_scores[side][keep_whisker_idx[side]] for side in side_types}
+    keep_whisker_lengths = {side: np.array(whisker_lengths[side])[keep_whisker_idx[side]] for side in side_types}
+    keep_follicle_x = {side: np.array(follicle_x[side])[keep_whisker_ids[side]] for side in side_types}
+    keep_follicle_y = {side: np.array(follicle_y[side])[keep_whisker_ids[side]] for side in side_types}
+        
+    # Order them by follicle position from rostral to caudal, using either follicle_x or follicle_y depending on the face orientation (see whiskerpad_params)
+    ordered_whisker_ids = {side: keep_whisker_ids[side][np.argsort(keep_follicle_x[side])] if whiskerpad_params['whiskerpads'][0]['FaceAxis'] == 'horizontal' else keep_whisker_ids[side][np.argsort(keep_follicle_y[side])] for side in side_types}
+    
+    # Compute the absolute distance between the follicles of the first two whiskers on each side
+    distances = {side: np.abs(keep_follicle_x[side][ordered_whisker_ids[side]][1] - keep_follicle_x[side][ordered_whisker_ids[side]][0]) if whiskerpad_params['whiskerpads'][0]['FaceAxis'] == 'horizontal' else np.abs(keep_follicle_y[side][ordered_whisker_ids[side]][1] - keep_follicle_y[side][ordered_whisker_ids[side]][0]) for side in side_types}
+    
+    # Compute the px2mm conversion factor using the distance and the image coordinates in pixels. Assume ~1.5mm distance between the two whisker follicles. Use the mean of the two sides.
+    fol_dist_mm = 1.5
+    fol_dist_px = np.mean([distances[side] for side in side_types])
+    # round to 2 decimals
+    px2mm = round(fol_dist_mm / fol_dist_px, 2)
+    # If the px2mm conversion factor is too high or too low, use default 0.04
+    if px2mm < 0.01 or px2mm > 0.05:
+        px2mm = 0.04
+    print(f'Pixel to mm conversion factor: {px2mm}')
+    
+    return px2mm
+
 def trace_measure(input_file, base_name, output_dir, nproc, splitUp):
         
     # if output directory doesn't exist, create it
@@ -37,7 +76,7 @@ def trace_measure(input_file, base_name, output_dir, nproc, splitUp):
     # whiskerpad_file = os.path.join(input_dir, f'whiskerpad_{os.path.basename(input_file).split(".")[0]}.json')
     
     if not os.path.exists(whiskerpad_file):
-    # If whiskerpad file does not exist, create it
+        # If whiskerpad file does not exist, create it
         print('Creating whiskerpad parameters file.')
         whiskerpad=wp.Params(input_file, splitUp, base_name)
         # Get whiskerpad parameters
@@ -56,7 +95,12 @@ def trace_measure(input_file, base_name, output_dir, nproc, splitUp):
     side_types = [whiskerpad['FaceSide'].lower() for whiskerpad in whiskerpad_params['whiskerpads']]
     
     # Track whiskers on first frame
-    wtsf.track_whiskers(input_file, whiskerpad_params, splitUp, base_name, output_dir)
+    whisker_ids, whisker_lengths, whisker_scores, follicle_x, follicle_y = wtsf.track_whiskers(input_file, whiskerpad_params, splitUp, base_name, output_dir)
+    
+    num_whiskers = estimate_num_whiskers(whisker_scores, side_types)
+        
+    px2mm = estimate_px2mm(whisker_ids, whisker_scores, whisker_lengths, follicle_x, follicle_y, whiskerpad_params, side_types)
+     
 
     ########################
     ### Run whisker tracking
@@ -94,7 +138,7 @@ def trace_measure(input_file, base_name, output_dir, nproc, splitUp):
             skip_stitch=True,
             face=im_side,
             # Pass arguments for the classify call
-            classify={'px2mm': '0.04', 'n_whiskers': '3'},
+            classify={'px2mm': px2mm, 'n_whiskers': num_whiskers[side]},
             summary_only = True,
             skip_existing=True
         )      
