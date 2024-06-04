@@ -1,3 +1,10 @@
+"""
+This script combines whiskers and measurement files into a single file (formats: csv, hdf5, npy).
+
+Example usage:
+python combine_sides.py /path/to/input_dir -b base_name -ff csv -od /path/to/output_dir -ft midpoint
+"""
+    
 import os
 import glob
 import re
@@ -6,18 +13,37 @@ import pandas as pd
 import numpy as np
 import tables
 from typing import List, Optional
-import WhiskiWrap
-from WhiskiWrap.base import read_whiskers_hdf5_summary
+import WhiskiWrap as ww
 from WhiskiWrap import load_whisker_data as lwd
+from WhiskiWrap import wfile_io
+from WhiskiWrap.mfile_io import MeasurementsTable
+
+from joblib import Parallel, delayed
+from concurrent.futures import ProcessPoolExecutor
+from filelock import FileLock
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+
+import time
+
+# Define sides
+default_sides = ['left', 'right', 'top', 'bottom']
 
 def get_files(input_dir: str):
+    """
+    Get whiskers and measurement files from input directory. Find which sides are present in the whiskers files.    
+    """
+    
+    whiskers_files = glob.glob(os.path.join(input_dir, '*.whiskers'))
+    # Find which sides are present in the whiskers files
+    sides = [side for side in default_sides if any(side in f for f in whiskers_files)]
+    
     # Initialize list of whiskers and measurement files
     whiskers_files = []
     measurement_files = []
     hdf5_files = []
-
-    # Define sides
-    sides = ['left', 'right', 'top', 'bottom']
     
     # Loop through sides
     for side in sides:
@@ -35,7 +61,7 @@ def get_files(input_dir: str):
         # output_hdf5_file = os.path.join(output_dir, f"output_{side}.hdf5")
         # if os.path.exists(output_hdf5_file):
         #     os.remove(output_hdf5_file)
-        # WhiskiWrap.setup_hdf5(output_hdf5_file, 1000000, measure=True)
+        # ww.setup_hdf5(output_hdf5_file, 1000000, measure=True)
 
     # Get base names of whiskers and measurement files
     whiskers_base_names = {os.path.splitext(os.path.basename(f))[0] for f in whiskers_files}
@@ -49,22 +75,76 @@ def get_files(input_dir: str):
     filtered_whiskers_files = sorted(filtered_whiskers_files)
     filtered_measurement_files = sorted(filtered_measurement_files)
 
-    return filtered_whiskers_files, filtered_measurement_files, hdf5_files
+    return filtered_whiskers_files, filtered_measurement_files, hdf5_files, sides
 
 def get_chunk_start(filename: str) -> int:
     match = re.search(r'\d{8}', os.path.basename(filename))
     return int(match.group()) if match else 0
+    
+def process_whiskers_files(params, output_file, sides, chunk_size):
+    whiskers_file, measurement_file = params
+    side = [side for side in sides if side in whiskers_file][0]
+    chunk_start = get_chunk_start(whiskers_file)
+    ww.base.append_whiskers_to_zarr(
+        whiskers_file=whiskers_file,
+        zarr_filename=output_file,
+        chunk_start=chunk_start,
+        measurements_filename=measurement_file,
+        face_side=side,
+        chunk_size=(chunk_size,)
+    )
 
-def combine_measurement_files(filtered_whiskers_files: List[str], filtered_measurement_files: List[str], output_hdf5_file: str, output_csv_file: str, video_filename: Optional[str]=None):
-    # print(f"Output CSV file: {output_csv_file}")
-    for (whiskers_file, measurement_file) in enumerate(zip(filtered_whiskers_files, filtered_measurement_files)):
-        chunk_start = get_chunk_start(whiskers_file)
+def combine_measurement_files(whiskers_files: List[str], measurement_files: List[str], sides: List[str], output_file: str):       
+    """ 
+    Combine whiskers and measurement files and save to output file.
+    """                            
+
+    if output_file.endswith('.hdf5'):
+        if os.path.exists(output_file):
+            os.remove(output_file)
+        ww.setup_hdf5(output_file, 1000000, measure=True)
         
-        WhiskiWrap.base.append_whiskers_to_hdf5(
-            whisk_filename=whiskers_file,
-            measurements_filename=measurement_file,
-            h5_filename=output_hdf5_file,
-            chunk_start=chunk_start)
+        for whiskers_file, measurement_file in zip(whiskers_files, measurement_files):
+            # Get which side the whiskers file is from
+            side = [side for side in sides if side in whiskers_file][0]
+            # Get chunk start
+            chunk_start = get_chunk_start(whiskers_file)
+            # Call append_whiskers_to_hdf5 function
+            ww.base.append_whiskers_to_hdf5(
+                whisk_filename=whiskers_file,
+                measurements_filename=measurement_file,
+                h5_filename=output_file,
+                chunk_start=chunk_start,
+                face_side=side)
+    
+        # Saving to hdf5 file using parallel processing:
+        # hdf5 is not thread safe, but data can be processed to temporary files
+        # in parallel and then written to the hdf5 file in a single thread.
+        # See ww.base.write_whiskers_to_tmp
+    
+    elif output_file.endswith('.zarr'):
+        
+        # Get the chunk_size from the whiskers_files file name pattern
+        chunk_size = get_chunk_start(whiskers_files[1]) - get_chunk_start(whiskers_files[0])
+          
+        # Save to zarr file, with regular loop
+        for whiskers_file, measurement_file in zip(whiskers_files, measurement_files):
+            # Get which side the whiskers file is from
+            side = [side for side in sides if side in whiskers_file][0]
+            # Get chunk start
+            chunk_start = get_chunk_start(whiskers_file)
+            # Call append_whiskers_to_zarr function
+            ww.base.append_whiskers_to_zarr(
+                whiskers_file, output_file, chunk_start, measurement_file, side, (chunk_size,))
+                        
+        # Save to zarr file, using parallel processing.
+        # Warning: for a small number of files, this is much slower than a regular loop. 
+        # TODO: find threshold for when to use parallel processing
+        # with ProcessPoolExecutor() as executor:
+        #     executor.map(lambda params: process_whiskers_files(params, output_file, sides, chunk_size),
+        #         zip(whiskers_files, measurement_files)
+        #     )
+
 
 def combine_hdf5(h5_files: List[str], output_file: str = 'combined.csv') -> None:
     """ Combine hdf5 files into a single hdf5 or csv file.
@@ -76,7 +156,7 @@ def combine_hdf5(h5_files: List[str], output_file: str = 'combined.csv') -> None
 
     # Loop through hdf5 files
     for h5_file in h5_files:
-        table = read_whiskers_hdf5_summary(h5_file)
+        table = ww.base.read_whiskers_hdf5_summary(h5_file)
         # print(table.head())
         # size = table.shape[0]
 
@@ -144,70 +224,91 @@ def get_midpoints(summary):
     """
     # Sort summary by frame id and whisker id
     summary = sort_table(summary)
-    # For each frame, find the median angle for each frame
-    median_angles = summary.groupby('fid')['angle'].median()
-    # make it a dataframe with two columns: fid, angle
-    median_angles = median_angles.reset_index()
-
+    # # For each frame, find the median angle for each frame
+    # median_angles = summary.groupby('fid')['angle'].median()
+    # # make it a dataframe with two columns: fid, angle
+    # median_angles = median_angles.reset_index()
+    # Find the median angle for each frame and keep the face coordinates
+    median_angles = summary.groupby('fid').agg({
+    'angle': 'median',
+    'face_x': 'first',
+    'face_y': 'first',
+    'length': 'median',
+    }).reset_index()
+    
     return median_angles
 
 
-# Create main function 
 if __name__ == "__main__":  # : -> None
-
     # Define argument parser
     parser = argparse.ArgumentParser(description="Combine whiskers files and measurement files into a single HDF5 file.")
     parser.add_argument("input_dir", help="Path to the directory containing the whiskers and measurement files.")
-    parser.add_argument("video_filename", help="video file name")
-    parser.add_argument("format", help="output format", default="csv")
-    parser.add_argument("-o", "--output_dir", help="Path to the directory to save the output file.")
-    parser.add_argument("-f", "--feature", help="feature to extract", default="midpoint")
+    parser.add_argument("-b", "--base", help='Base name for output files', type=str)
+    parser.add_argument("-ff", "--format", help="output format", default="csv", choices=["csv", "feather", "hdf5", "zarr"])
+    parser.add_argument("-od", "--output_dir", help="Path to the directory to save the output file.")
+    parser.add_argument("-ft", "--feature", help="feature to extract", default=None, choices=["midpoint"])
     
     args = parser.parse_args()
 
-    video_filename = args.video_filename
-    if video_filename is None:
-        print("No video file provided to substract midline")
-    else:
-        print("Video file:", video_filename)
-
+    # video_filename = args.video_filename
+    # if video_filename is None:
+    #     print("No video file provided to substract midline")
+    # else:
+    #     print("Video file:", video_filename)
+    
+    # Get input and output directories, and file format 
     input_dir = args.input_dir
     if args.output_dir is None:
         output_dir = input_dir 
     else:
         output_dir = args.output_dir
-    format = args.format
-
-    # Define output file, based on video filename and format
-    if args.feature is None:
-        output_file = os.path.join(output_dir, f"{os.path.splitext(video_filename)[0]}.{format}")
-    else:
-        output_file = os.path.join(output_dir, f"{os.path.splitext(video_filename)[0]}_{args.feature}.{format}")
-
-    print(f"Output file: {output_file}")
+    file_format = args.format
 
     # Get whiskers and measurement files
-    whiskers_files, measurement_files, hdf5_files = get_files(input_dir)
+    whiskers_files, measurement_files, hdf5_files, sides = get_files(input_dir)
+    
+    if args.base is None:
+        # Get the common file name part from the whiskers files
+        base_name = os.path.commonprefix([os.path.basename(f) for f in whiskers_files])
+    else:
+        base_name = args.base 
+    
+    # Define output file, based on video filename and format
+    if args.feature is None:
+        output_file = os.path.join(output_dir, f"{base_name}.{file_format}")
+    else:
+        output_file = os.path.join(output_dir, f"{base_name}_{args.feature}.{file_format}")
 
+    print(f"Output file: {output_file}")
+    
     # if measurement_files is empty, combine hdf5 files
     if len(measurement_files) == 0:
         # if files have been updated, only combine updated files.
         if any('updated' in f for f in hdf5_files):
             hdf5_files = [f for f in hdf5_files if 'updated' in f]
-        
         combine_hdf5(hdf5_files, output_file)
+        
     else:
-        # if -f is not provided, combine whiskers and measurement files and save to output file
         if args.feature is None:
-            combine_measurement_files(whiskers_files, measurement_files, output_file, video_filename=video_filename)
+                    # Time the process
+            start = time.time() 
+          
+            # If -f is not provided, combine whiskers and measurement files and save to output file
+            combine_measurement_files(whiskers_files, measurement_files, sides, output_file)
+                    
+            print(f"Time taken: {time.time() - start}")
         else:
-            # if -f is provided, extract feature and save to output file
+            # If -f is provided, extract feature and save to output file
+            
             # first reassess whisker ids for each side
-            sides = ['left', 'right']
             side_whiskers_files = {side: [f for f in whiskers_files if side in f] for side in sides}
+            
+            # Initialize variables
             updated_summary = {}
             # midpoints = {}
             midpoints_df = pd.DataFrame()
+            # Define the columns to rename
+            cols_to_rename = ['angle', 'face_x', 'face_y', 'length']
 
             # Loop through sides
             for side, files in side_whiskers_files.items():
@@ -217,8 +318,12 @@ if __name__ == "__main__":  # : -> None
                     if args.feature == "midpoint":
                         # get midpoints
                         midpoints = get_midpoints(updated_summary[side])
-                        # Rename column 'angle' to 'midpoint_{side}'
-                        midpoints = midpoints.rename(columns={'angle': f'midpoint_{side}'})
+                        # Rename column names to 'name_{side}'
+                        # Create a dictionary mapping from old names to new names
+                        rename_dict = {col: f'{col}_{side}' if col != 'angle' else f'midpoint_{side}' for col in cols_to_rename if col in midpoints.columns}
+                        # Rename the columns
+                        midpoints = midpoints.rename(columns=rename_dict)
+                    
                         # Convert the midpoints to a DataFrame and join it with the existing DataFrame
                         if midpoints_df.empty:
                             midpoints_df = pd.DataFrame(midpoints)
@@ -226,12 +331,10 @@ if __name__ == "__main__":  # : -> None
                             midpoints_df = midpoints_df.merge(pd.DataFrame(midpoints), on='fid', how='outer')
 
             # Save midpoints to output_file, according to format
-            if format == "csv":
+            if file_format == "csv":
                 midpoints_df.to_csv(output_file, index=False)
-            elif format == "hdf5":
-                midpoints.to_hdf(output_file, key='midpoints', mode='w')
-            elif format == "npy":
-                np.save(output_file, midpoints.values)
+            elif file_format == "feather":
+                midpoints_df.to_feather(output_file)
             else:
                 print("Format not supported")
             

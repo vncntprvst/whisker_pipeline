@@ -471,7 +471,7 @@ def track_whiskers(input_file, whiskerpad_params, splitUp, base_name=None, outpu
 
     face_im_sides = [whiskerpads['ImageBorderAxis'] for whiskerpads in whiskerpad_params['whiskerpads']]
 
-    save_image_halves(image_halves, image_sides, face_im_sides, base_name, input_dir, direction, output_dir)
+    output_dir = save_image_halves(image_halves, image_sides, face_im_sides, base_name, input_dir, direction)
     
     # Run the whisker tracking
     run_whisker_tracking(image_halves, face_sides, face_im_sides, base_name, output_dir)

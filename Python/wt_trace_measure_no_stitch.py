@@ -1,5 +1,12 @@
-# This script creates and/or loads whiskerpad parameters, and calls WhiskiWrap to trace and measure whiskers.  
-# Unlike cut_trace_measure.py, this script does not crop the video.
+"""
+This script creates and/or loads whiskerpad parameters, and calls WhiskiWrap to trace and measure whiskers.  
+Unlike cut_trace_measure.py, this script does not crop the video.
+
+Example usage:
+```bash
+python wt_trace_measure_no_stitch.py /path/to/video.mp4 -b base_name -o /path/to/output_dir -p 40
+```
+"""
 
 import argparse
 import os, sys
@@ -115,15 +122,17 @@ def trace_measure(input_file, base_name, output_dir, nproc, splitUp):
     # Track whiskers on first frame
     whisker_ids, whisker_lengths, whisker_scores, follicle_x, follicle_y = wtsf.track_whiskers(input_file, whiskerpad_params, splitUp, base_name, output_dir)
     
+    # Estimate the number of whiskers to track
     num_whiskers = estimate_num_whiskers(whisker_scores, whisker_lengths, side_types)
-        
+    # Estimate the px2mm conversion factor
     px2mm = estimate_px2mm(whisker_ids, whisker_scores, whisker_lengths, follicle_x, follicle_y, whiskerpad_params, side_types)
-     
-
+    
     ########################
     ### Run whisker tracking
     ########################
 
+    chunk_size = 200
+    
     for side in side_types:
         print(f'Running whisker tracking for {side} face side video')
 
@@ -150,9 +159,10 @@ def trace_measure(input_file, base_name, output_dir, nproc, splitUp):
                                             crop = side_im_coord),
                             output_dir,
                             chunk_name_pattern = chunk_name_pattern,
-                            chunk_size = 200,
+                            chunk_size = chunk_size,
                             h5_filename = None,
                             n_trace_processes = nproc, 
+                            expected_rows = chunk_size * 15,
                             frame_func = 'crop',
                             skip_stitch = True,
                             face = im_side,
