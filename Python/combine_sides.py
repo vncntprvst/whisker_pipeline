@@ -3,6 +3,7 @@ This script combines whiskers and measurement files into a single file (formats:
 
 Example usage:
 python combine_sides.py /path/to/input_dir -b base_name -ff csv -od /path/to/output_dir -ft midpoint
+python combine_sides.py /home/wanglab/data/whisker_asym/sc012/test/WT -b sc012_0119_001 -ff zarr -od /home/wanglab/data/whisker_asym/sc012/test
 """
     
 import os
@@ -12,22 +13,26 @@ import argparse
 import pandas as pd
 import numpy as np
 import tables
+import zarr
 from typing import List, Optional
+
 import WhiskiWrap as ww
 from WhiskiWrap import load_whisker_data as lwd
 from WhiskiWrap import wfile_io
 from WhiskiWrap.mfile_io import MeasurementsTable
 
+import multiprocessing as mp
 from joblib import Parallel, delayed
+# from threading import Lock
 from concurrent.futures import ProcessPoolExecutor
-from filelock import FileLock
+# from filelock import FileLock
 import logging
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 import time
-
+        
 # Define sides
 default_sides = ['left', 'right', 'top', 'bottom']
 
@@ -81,19 +86,92 @@ def get_chunk_start(filename: str) -> int:
     match = re.search(r'\d{8}', os.path.basename(filename))
     return int(match.group()) if match else 0
     
-def process_whiskers_files(params, output_file, sides, chunk_size):
+# def process_whiskers_files(params, output_file, sides, chunk_size):
+#     whiskers_file, measurement_file = params
+#     side = [side for side in sides if side in whiskers_file][0]
+#     chunk_start = get_chunk_start(whiskers_file)
+#     ww.base.append_whiskers_to_zarr(
+#         whisk_filename=whiskers_file,
+#         zarr_filename=output_file,
+#         chunk_start=chunk_start,
+#         measurements_filename=measurement_file,
+#         face_side=side,
+#         chunk_size=(chunk_size,)
+#     )
+
+
+# def process_whiskers_files(params, output_file, sides, chunk_size, queue):
+#     whiskers_file, measurement_file = params
+#     side = [side for side in sides if side in whiskers_file][0]
+#     chunk_start = get_chunk_start(whiskers_file)
+#     ww.base.append_whiskers_to_zarr(whiskers_file, output_file, chunk_start, measurement_file, side, (chunk_size,), queue)
+def inspect_queue(queue):
+    items = []
+    while True:
+        try:
+            item = queue.get_nowait()
+            items.append(item)
+        except mp.queues.Empty:
+            break
+    return items
+
+# def process_whiskers_files(params, output_file, sides, chunk_size, queue):
+#     logging.debug(f"Processing whiskers files with params: {params}")
+#     whiskers_file, measurement_file = params
+#     side = [side for side in sides if side in whiskers_file][0]
+#     chunk_start = get_chunk_start(whiskers_file)
+#     result = ww.base.append_whiskers_to_zarr(whiskers_file, output_file, chunk_start, measurement_file, side, (chunk_size,), True)
+#     logging.debug(f"Result prepared: {result}")
+#     queue.put(result)
+#     logging.debug(f"Result put in queue")
+
+def process_whiskers_files(params, output_file, sides, chunk_size, queue):
+    print(f"Processing whiskers files with params: {params}")
     whiskers_file, measurement_file = params
     side = [side for side in sides if side in whiskers_file][0]
     chunk_start = get_chunk_start(whiskers_file)
-    ww.base.append_whiskers_to_zarr(
-        whiskers_file=whiskers_file,
-        zarr_filename=output_file,
-        chunk_start=chunk_start,
-        measurements_filename=measurement_file,
-        face_side=side,
-        chunk_size=(chunk_size,)
-    )
+    result = ww.base.append_whiskers_to_zarr(whiskers_file, output_file, chunk_start, measurement_file, side, (chunk_size,), True)
+    print(f"Result prepared: {result}")
+    queue.put(result)
+    print(f"Result put in queue")
+    
+def writer_process(queue, output_file, chunk_size):
+    logging.debug(f"Opening Zarr file: {output_file}")
+    zarr_file = ww.base.initialize_zarr(output_file, chunk_size)
+    while True:
+        logging.debug(f"Waiting for message")
+        message = queue.get()
+        logging.debug(f"Received message: {message}")
+        if message == 'DONE':
+            logging.debug(f"Closing Zarr file: {output_file}")
+            break
+        summary_data_list, pixels_x_list, pixels_x_indices_list, pixels_y_list, pixels_y_indices_list = message
+        
+        logging.debug(f"Writing data to Zarr file: {len(summary_data_list)} summary records, {len(pixels_x_list)} pixels_x, {len(pixels_y_list)} pixels_y")
+        try:
+            if summary_data_list:
+                summary_array = np.fromiter((tuple(d.values()) for d in summary_data_list), dtype=zarr_file['summary'].dtype)
+                zarr_file['summary'].append(summary_array)
+            if pixels_x_list:
+                zarr_file['pixels_x'].append(pixels_x_list)
+                zarr_file['pixels_x_indices'].append(pixels_x_indices_list)
+            if pixels_y_list:
+                zarr_file['pixels_y'].append(pixels_y_list)
+                zarr_file['pixels_y_indices'].append(pixels_y_indices_list)
+                
+            # Log current state of the Zarr file
+            logging.debug(f"Zarr file summary dataset length: {len(zarr_file['summary'])}")
+            logging.debug(f"Zarr file pixels_x dataset length: {len(zarr_file['pixels_x'])}")
+            logging.debug(f"Zarr file pixels_y dataset length: {len(zarr_file['pixels_y'])}")
+        except Exception as e:
+            logging.error(f"Error writing to Zarr file: {e}")
+            raise e
 
+def process_wrapper(params, output_file, sides, chunk_size, queue):
+    # logging.debug(f"Calling process_whiskers_files with params: {params}")
+    print(f"Calling process_whiskers_files with params: {params}")
+    process_whiskers_files(params, output_file, sides, chunk_size, queue)
+               
 def combine_measurement_files(whiskers_files: List[str], measurement_files: List[str], sides: List[str], output_file: str):       
     """ 
     Combine whiskers and measurement files and save to output file.
@@ -128,14 +206,14 @@ def combine_measurement_files(whiskers_files: List[str], measurement_files: List
         chunk_size = get_chunk_start(whiskers_files[1]) - get_chunk_start(whiskers_files[0])
           
         # Save to zarr file, with regular loop
-        for whiskers_file, measurement_file in zip(whiskers_files, measurement_files):
-            # Get which side the whiskers file is from
-            side = [side for side in sides if side in whiskers_file][0]
-            # Get chunk start
-            chunk_start = get_chunk_start(whiskers_file)
-            # Call append_whiskers_to_zarr function
-            ww.base.append_whiskers_to_zarr(
-                whiskers_file, output_file, chunk_start, measurement_file, side, (chunk_size,))
+        # for whiskers_file, measurement_file in zip(whiskers_files, measurement_files):
+        #     # Get which side the whiskers file is from
+        #     side = [side for side in sides if side in whiskers_file][0]
+        #     # Get chunk start
+        #     chunk_start = get_chunk_start(whiskers_file)
+        #     # Call append_whiskers_to_zarr function
+        #     ww.base.append_whiskers_to_zarr(
+        #         whiskers_file, output_file, chunk_start, measurement_file, side, (chunk_size,))
                         
         # Save to zarr file, using parallel processing.
         # Warning: for a small number of files, this is much slower than a regular loop. 
@@ -144,7 +222,50 @@ def combine_measurement_files(whiskers_files: List[str], measurement_files: List
         #     executor.map(lambda params: process_whiskers_files(params, output_file, sides, chunk_size),
         #         zip(whiskers_files, measurement_files)
         #     )
+        
+        logging.debug(f"Creating writer process")
+        queue = mp.Queue()
+        
+        # Start the writer process
+        writer = mp.Process(target=writer_process, args=(queue, output_file, chunk_size))
+        writer.start()
+        
+        # # Process files in parallel
+        # with ProcessPoolExecutor() as executor:
+        #     executor.map(lambda params: process_whiskers_files(params, output_file, sides, chunk_size, queue),
+        #                  zip(whiskers_files, measurement_files))
+        # Process files in parallel
+        with ProcessPoolExecutor() as executor:
+            executor.map(lambda params: process_wrapper(params, output_file, sides, chunk_size, queue),
+                         zip(whiskers_files, measurement_files))
+            
+        # # Process files sequentially
+        # for params in zip(whiskers_files, measurement_files):
+        #     process_whiskers_files(params, output_file, sides, chunk_size, queue)
+            
+        # Signal the writer process to finish
+        logging.debug(f"Final state of the queue: {inspect_queue(queue)}")
+        queue.put('DONE')
+        logging.debug(f"Signalling writer process to finish")
+        writer.join()
+        
+        # queue = mp.Queue()
+        
+        # # Start the writer process
+        # writer = mp.Process(target=writer_process, args=(queue, output_file, chunk_size))
+        # writer.start()
+        
+        # # Parallel processing
+        # Parallel(n_jobs=-1)(delayed(ww.base.append_whiskers_to_zarr)(
+        #     whiskers_file, output_file, get_chunk_start(whiskers_file), measurement_file, 
+        #     [side for side in sides if side in whiskers_file][0], (chunk_size,), queue)
+        #     for whiskers_file, measurement_file in zip(whiskers_files, measurement_files)
+        # )
 
+        # # Signal the writer process to finish
+        # queue.put('DONE')
+        # writer.join()
+        
 
 def combine_hdf5(h5_files: List[str], output_file: str = 'combined.csv') -> None:
     """ Combine hdf5 files into a single hdf5 or csv file.
