@@ -88,7 +88,7 @@ def trace_measure(input_file, base_name, output_dir, nproc, splitUp):
             frame_func='crop',
             face=im_side,
             # Pass arguments for the classify call
-            classify={'px2mm': '0.04', 'n_whiskers': '3'},
+            classify={'px2mm': '0.06', 'n_whiskers': '-1'},
             summary_only = True,
             skip_existing=True
         )      
@@ -98,7 +98,6 @@ def trace_measure(input_file, base_name, output_dir, nproc, splitUp):
 
         # Reassess whisker IDs
         lwd.update_wids(h5_filename)
-
 
         ## Read hdf5 file
         # from ww.base import read_whiskers_hdf5_summary

@@ -123,7 +123,9 @@ def trace_measure(input_file, base_name, output_dir, nproc, splitUp):
     whisker_ids, whisker_lengths, whisker_scores, follicle_x, follicle_y = wtsf.track_whiskers(input_file, whiskerpad_params, splitUp, base_name, output_dir)
     
     # Estimate the number of whiskers to track
-    num_whiskers = estimate_num_whiskers(whisker_scores, whisker_lengths, side_types)
+    # num_whiskers = estimate_num_whiskers(whisker_scores, whisker_lengths, side_types)
+    # Set it to -1 
+    num_whiskers = {side: -1 for side in side_types}
     # Estimate the px2mm conversion factor
     px2mm = estimate_px2mm(whisker_ids, whisker_scores, whisker_lengths, follicle_x, follicle_y, whiskerpad_params, side_types)
     
@@ -160,7 +162,7 @@ def trace_measure(input_file, base_name, output_dir, nproc, splitUp):
                             output_dir,
                             chunk_name_pattern = chunk_name_pattern,
                             chunk_size = chunk_size,
-                            h5_filename = None,
+                            output_filename = None,
                             n_trace_processes = nproc, 
                             expected_rows = chunk_size * 15,
                             frame_func = 'crop',
