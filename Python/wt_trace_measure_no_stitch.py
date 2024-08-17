@@ -125,9 +125,11 @@ def trace_measure(input_file, base_name, output_dir, nproc, splitUp):
     # Estimate the number of whiskers to track
     # num_whiskers = estimate_num_whiskers(whisker_scores, whisker_lengths, side_types)
     # Set it to -1 
-    num_whiskers = {side: -1 for side in side_types}
+    num_whiskers = -1 # {side: -1 for side in side_types}
     # Estimate the px2mm conversion factor
     px2mm = estimate_px2mm(whisker_ids, whisker_scores, whisker_lengths, follicle_x, follicle_y, whiskerpad_params, side_types)
+    # Classify arguments
+    classify_args = {'px2mm': str(px2mm), 'n_whiskers': str(num_whiskers)}
     
     ########################
     ### Run whisker tracking
@@ -169,7 +171,7 @@ def trace_measure(input_file, base_name, output_dir, nproc, splitUp):
                             skip_stitch = True,
                             face = im_side,
                             # Pass arguments for the classify call
-                            classify = {'px2mm': str(px2mm), 'n_whiskers': str(num_whiskers[side])},
+                            classify = classify_args,
                             summary_only = True,
                             skip_existing = True
                         )      
