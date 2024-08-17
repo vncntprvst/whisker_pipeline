@@ -56,14 +56,29 @@ def trace_measure(input_file, base_name, output_dir, nproc, splitUp):
     ########################
     ### Run whisker tracking
     ########################
-
+    
+    chunk_size = 200
+    
+    # Define classify arguments
+    # See reference for classify arguments: https://wikis.janelia.org/display/WT/Whisker+Tracking+Command+Line+Reference#WhiskerTrackingCommandLineReference-classify
+    px2mm = 0.06            # Pixel size in millimeters (mm per pixel).
+    num_whiskers = -1       # Expected number of segments longer than the length threshold.
+    size_limit = '2.0:40.0' # Low and high length threshold (mm).
+    follicle = 150          # Only count follicles that lie on one side of the line specified by this threshold (px). 
+    
+    classify_args = {'px2mm': str(px2mm), 'n_whiskers': str(num_whiskers)}
+    if size_limit is not None:
+        classify_args['limit'] = size_limit
+    if follicle is not None:
+        classify_args['follicle'] = str(follicle)
+    
     for side in side_types:
         print(f'Running whisker tracking for {side} face side video')
 
         # Time the tracking
         start_time_track = time.time()
 
-        h5_filename = os.path.join(os.path.dirname(input_file), f'{base_name}_{side}.hdf5')
+        output_filename = os.path.join(os.path.dirname(input_file), f'{base_name}_{side}.parquet')
         chunk_name_pattern = f'{base_name}_{side}_%08d.tif'
 
         # get the ImageBorderAxis for the side
@@ -82,38 +97,40 @@ def trace_measure(input_file, base_name, output_dir, nproc, splitUp):
             ww.FFmpegReader(input_file, crop=side_im_coord),
             output_dir,
             chunk_name_pattern=chunk_name_pattern,
-            chunk_size=200,
-            h5_filename=h5_filename,
+            chunk_size=chunk_size,
+            output_filename=output_filename,
             n_trace_processes=nproc, 
             frame_func='crop',
             face=im_side,
             # Pass arguments for the classify call
-            classify={'px2mm': '0.06', 'n_whiskers': '-1'},
-            summary_only = True,
-            skip_existing=True
+            classify=classify_args,
+            summary_only=True,
+            skip_existing=True,
+            convert_chunks=True,
         )      
 
         time_track = time.time() - start_time_track
         print(f'Tracking took {time_track} seconds.')
 
         # Reassess whisker IDs
-        lwd.update_wids(h5_filename)
+        # lwd.update_wids(output_filename)
+
 
         ## Read hdf5 file
         # from ww.base import read_whiskers_hdf5_summary
-        # h5_filename='/data/dev/sc014_0315_001_left.hdf5'
-        # table = read_whiskers_hdf5_summary(h5_filename)
+        # output_filename='/data/dev/sc014_0315_001_left.hdf5'
+        # table = read_whiskers_hdf5_summary(output_filename)
         # print(table.head())
 
         # import pandas
         # import tables
 
-        # with tables.open_file(h5_filename) as fi:
+        # with tables.open_file(output_filename) as fi:
         #     summary = pandas.DataFrame.from_records(fi.root.summary.read())
 
         # print(summary.head())
 
-        # fi=tables.open_file(h5_filename)
+        # fi=tables.open_file(output_filename)
     
 
 
