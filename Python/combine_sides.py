@@ -38,29 +38,50 @@ default_sides = ['left', 'right', 'top', 'bottom']
 
 def get_files(input_dir: str):
     """
-    Get whiskers and measurement files from input directory. Find which sides are present in the whiskers files.    
+    Get whisker tracking files (e.g., whiskers and measurement) from input directory. 
+    Find which sides are present in the whiskers files.    
     """
     
-    whiskers_files = glob.glob(os.path.join(input_dir, '*.whiskers'))
-    # Find which sides are present in the whiskers files
-    sides = [side for side in default_sides if any(side in f for f in whiskers_files)]
+    wt_format = 'whiskers'
+    wt_stitched = False
+    wt_files = glob.glob(os.path.join(input_dir, f'*.{wt_format}'))
+    
+    if len(wt_files) == 0:
+        # check for hdf5 or parquet files
+        wt_files = glob.glob(os.path.join(input_dir, '*.hdf5'))
+        if len(wt_files) == 0:
+            wt_files = glob.glob(os.path.join(input_dir, '*.parquet'))
+            wt_format = 'parquet'
+            wt_stitched = True
+            if len(wt_files) == 0:
+                print("No whiskers files found in input directory")
+                return [], [], [], []
+        else:
+            wt_format = 'hdf5'
+            if len(wt_files) <= 2:
+                wt_stitched = True
+            
+    # Find which sides are present in the whisker tracking files
+    sides = [side for side in default_sides if any(side in f for f in wt_files)]
     
     # Initialize list of whiskers and measurement files
-    whiskers_files = []
-    measurement_files = []
-    hdf5_files = []
+    wt_files = []
+    if wt_format == 'whiskers':
+        measurement_files = []
+        hdf5_files = []
     
     # Loop through sides
     for side in sides:
         # Add to list of whiskers files and sort them
-        whiskers_files = whiskers_files + sorted(glob.glob(os.path.join(input_dir, f'*{side}*.whiskers')))
-        # Get measurements files
-        measurement_files = measurement_files + sorted(glob.glob(os.path.join(input_dir, f'*{side}*.measurements')))
-        # Get hdf5 files
-        hdf5_files = hdf5_files + sorted(glob.glob(os.path.join(input_dir, f'*{side}*.hdf5')))
+        wt_files = wt_files + sorted(glob.glob(os.path.join(input_dir, f'*{side}*.{wt_format}')))
+        if wt_format == 'whiskers': 
+            # Get measurements files
+            measurement_files = measurement_files + sorted(glob.glob(os.path.join(input_dir, f'*{side}*.measurements')))
+            # Get hdf5 files
+            hdf5_files = hdf5_files + sorted(glob.glob(os.path.join(input_dir, f'*{side}*.hdf5')))
 
-        # print(f"whiskers files: {whiskers_files}")
-        # print(f"measurements files: {measurement_files}")
+                # print(f"whiskers files: {whiskers_files}")
+                # print(f"measurements files: {measurement_files}")
 
         # Delete the existing output_{side}.h5 file if it exists
         # output_hdf5_file = os.path.join(output_dir, f"output_{side}.hdf5")
@@ -68,43 +89,28 @@ def get_files(input_dir: str):
         #     os.remove(output_hdf5_file)
         # ww.setup_hdf5(output_hdf5_file, 1000000, measure=True)
 
-    # Get base names of whiskers and measurement files
-    whiskers_base_names = {os.path.splitext(os.path.basename(f))[0] for f in whiskers_files}
-    measurement_base_names = {os.path.splitext(os.path.basename(f))[0] for f in measurement_files}
-    # Get matching base names
-    matching_base_names = whiskers_base_names.intersection(measurement_base_names)
-    # Filter whiskers and measurement files
-    filtered_whiskers_files = [f for f in whiskers_files if os.path.splitext(os.path.basename(f))[0] in matching_base_names]
-    filtered_measurement_files = [f for f in measurement_files if os.path.splitext(os.path.basename(f))[0] in matching_base_names]
-    # Sort filtered whiskers and measurement files
-    filtered_whiskers_files = sorted(filtered_whiskers_files)
-    filtered_measurement_files = sorted(filtered_measurement_files)
+    if wt_format == 'whiskers': 
+        # Get base names of whiskers and measurement files
+        whiskers_base_names = {os.path.splitext(os.path.basename(f))[0] for f in wt_files}
+        measurement_base_names = {os.path.splitext(os.path.basename(f))[0] for f in measurement_files}
+        # Get matching base names
+        matching_base_names = whiskers_base_names.intersection(measurement_base_names)
+        # Filter whiskers and measurement files
+        filtered_whiskers_files = [f for f in wt_files if os.path.splitext(os.path.basename(f))[0] in matching_base_names]
+        filtered_measurement_files = [f for f in measurement_files if os.path.splitext(os.path.basename(f))[0] in matching_base_names]
+        # Sort filtered whiskers and measurement files
+        filtered_whiskers_files = sorted(filtered_whiskers_files)
+        filtered_measurement_files = sorted(filtered_measurement_files)
 
-    return filtered_whiskers_files, filtered_measurement_files, hdf5_files, sides
-
+        return filtered_whiskers_files, sides, filtered_measurement_files, hdf5_files
+    
+    elif wt_format == 'hdf5' or wt_format == 'parquet':
+        return wt_files, sides 
+    
 def get_chunk_start(filename: str) -> int:
     match = re.search(r'\d{8}', os.path.basename(filename))
     return int(match.group()) if match else 0
     
-# def process_whiskers_files(params, output_file, sides, chunk_size):
-#     whiskers_file, measurement_file = params
-#     side = [side for side in sides if side in whiskers_file][0]
-#     chunk_start = get_chunk_start(whiskers_file)
-#     ww.base.append_whiskers_to_zarr(
-#         whisk_filename=whiskers_file,
-#         zarr_filename=output_file,
-#         chunk_start=chunk_start,
-#         measurements_filename=measurement_file,
-#         face_side=side,
-#         chunk_size=(chunk_size,)
-#     )
-
-
-# def process_whiskers_files(params, output_file, sides, chunk_size, queue):
-#     whiskers_file, measurement_file = params
-#     side = [side for side in sides if side in whiskers_file][0]
-#     chunk_start = get_chunk_start(whiskers_file)
-#     ww.base.append_whiskers_to_zarr(whiskers_file, output_file, chunk_start, measurement_file, side, (chunk_size,), queue)
 def inspect_queue(queue):
     items = []
     while True:
@@ -115,33 +121,29 @@ def inspect_queue(queue):
             break
     return items
 
-# def process_whiskers_files(params, output_file, sides, chunk_size, queue):
-#     logging.debug(f"Processing whiskers files with params: {params}")
-#     whiskers_file, measurement_file = params
-#     side = [side for side in sides if side in whiskers_file][0]
-#     chunk_start = get_chunk_start(whiskers_file)
-#     result = ww.base.append_whiskers_to_zarr(whiskers_file, output_file, chunk_start, measurement_file, side, (chunk_size,), True)
-#     logging.debug(f"Result prepared: {result}")
-#     queue.put(result)
-#     logging.debug(f"Result put in queue")
-
 def process_whiskers_files(params, output_file, sides, chunk_size, queue):
+    """
+    Process whiskers files in parallel.
+    """
     print(f"Processing whiskers files with params: {params}")
     whiskers_file, measurement_file = params
     side = [side for side in sides if side in whiskers_file][0]
     chunk_start = get_chunk_start(whiskers_file)
     result = ww.base.append_whiskers_to_zarr(whiskers_file, output_file, chunk_start, measurement_file, side, (chunk_size,), True)
-    print(f"Result prepared: {result}")
+    print(f"Result prepared for {whiskers_file}")
     queue.put(result)
     print(f"Result put in queue")
     
 def writer_process(queue, output_file, chunk_size):
+    """
+    Write data to Zarr file.
+    """
     logging.debug(f"Opening Zarr file: {output_file}")
     zarr_file = ww.base.initialize_zarr(output_file, chunk_size)
     while True:
         logging.debug(f"Waiting for message")
         message = queue.get()
-        logging.debug(f"Received message: {message}")
+        logging.debug(f"Received message")
         if message == 'DONE':
             logging.debug(f"Closing Zarr file: {output_file}")
             break
@@ -166,11 +168,6 @@ def writer_process(queue, output_file, chunk_size):
         except Exception as e:
             logging.error(f"Error writing to Zarr file: {e}")
             raise e
-
-def process_wrapper(params, output_file, sides, chunk_size, queue):
-    # logging.debug(f"Calling process_whiskers_files with params: {params}")
-    print(f"Calling process_whiskers_files with params: {params}")
-    process_whiskers_files(params, output_file, sides, chunk_size, queue)
                
 def combine_measurement_files(whiskers_files: List[str], measurement_files: List[str], sides: List[str], output_file: str):       
     """ 
@@ -234,44 +231,24 @@ def combine_measurement_files(whiskers_files: List[str], measurement_files: List
         # with ProcessPoolExecutor() as executor:
         #     executor.map(lambda params: process_whiskers_files(params, output_file, sides, chunk_size, queue),
         #                  zip(whiskers_files, measurement_files))
-        # Process files in parallel
-        with ProcessPoolExecutor() as executor:
-            executor.map(lambda params: process_wrapper(params, output_file, sides, chunk_size, queue),
-                         zip(whiskers_files, measurement_files))
             
-        # # Process files sequentially
-        # for params in zip(whiskers_files, measurement_files):
-        #     process_whiskers_files(params, output_file, sides, chunk_size, queue)
+        # Process files sequentially
+        for params in zip(whiskers_files, measurement_files):
+            process_whiskers_files(params, output_file, sides, chunk_size, queue)
             
         # Signal the writer process to finish
-        logging.debug(f"Final state of the queue: {inspect_queue(queue)}")
+        # logging.debug(f"Final state of the queue: {inspect_queue(queue)}")
         queue.put('DONE')
         logging.debug(f"Signalling writer process to finish")
         writer.join()
-        
-        # queue = mp.Queue()
-        
-        # # Start the writer process
-        # writer = mp.Process(target=writer_process, args=(queue, output_file, chunk_size))
-        # writer.start()
-        
-        # # Parallel processing
-        # Parallel(n_jobs=-1)(delayed(ww.base.append_whiskers_to_zarr)(
-        #     whiskers_file, output_file, get_chunk_start(whiskers_file), measurement_file, 
-        #     [side for side in sides if side in whiskers_file][0], (chunk_size,), queue)
-        #     for whiskers_file, measurement_file in zip(whiskers_files, measurement_files)
-        # )
-
-        # # Signal the writer process to finish
-        # queue.put('DONE')
-        # writer.join()
-        
+                
 
 def combine_hdf5(h5_files: List[str], output_file: str = 'combined.csv') -> None:
-    """ Combine hdf5 files into a single hdf5 or csv file.
+    """ 
+    Combine hdf5 files into a single hdf5 or csv file.
     """
 
-    # Initialize table to concantenate tables
+    # Initialize table to concatenate tables
     combined_table = pd.DataFrame()
     num_wids = 0
 
@@ -313,7 +290,8 @@ def combine_hdf5(h5_files: List[str], output_file: str = 'combined.csv') -> None
         combined_table.to_csv(output_file, index=False)
         
 def sort_table(combined_table: pd.DataFrame):
-    """ Sort combined table by frame id and whisker id.
+    """ 
+    Sort combined table by frame id and whisker id.
     """
     # Sort combined table by frame id and whisker id
     combined_table = combined_table.sort_values(by=['fid', 'wid'])
@@ -327,7 +305,8 @@ def sort_table(combined_table: pd.DataFrame):
     return combined_table
     
 def combine_sides(summary):
-    """ Combine left and right sides of the face.
+    """ 
+    Combine left and right sides of the face.
     """
     # Concatenate all sides
     combined_summary = pd.concat(summary.values(), ignore_index=True)
@@ -337,7 +316,8 @@ def combine_sides(summary):
     return combined_summary
 
 def get_midpoints(summary):
-    """ Get midpoints of whiskers.
+    """ 
+    Get midpoints of whiskers.
     Input:
     summary: pandas DataFrame
     Returns:
@@ -384,17 +364,25 @@ if __name__ == "__main__":  # : -> None
     else:
         output_dir = args.output_dir
     file_format = args.format
-
-    # Get whiskers and measurement files
-    whiskers_files, measurement_files, hdf5_files, sides = get_files(input_dir)
+        
+    # Get whisker tracking files
+    files_result = get_files(input_dir)
+    if len(files_result) == 4:
+        # Got whiskers and measurement files from the whisker tracking directory
+        wt_files, sides, measurement_files, hdf5_files = files_result
+    elif len(files_result) == 2:
+        # Got whisker tracking files from the main directory
+        wt_files, sides = files_result
+    else:
+        raise ValueError("Unexpected number of return values from get_files")
     
     if args.base is None:
         # Get the common file name part from the whiskers files
-        base_name = os.path.commonprefix([os.path.basename(f) for f in whiskers_files])
+        base_name = os.path.commonprefix([os.path.basename(f) for f in wt_files])
     else:
         base_name = args.base 
     
-    # Define output file, based on video filename and format
+    # Define output file from base name and format
     if args.feature is None:
         output_file = os.path.join(output_dir, f"{base_name}.{file_format}")
     else:
@@ -402,27 +390,30 @@ if __name__ == "__main__":  # : -> None
 
     print(f"Output file: {output_file}")
     
-    # if measurement_files is empty, combine hdf5 files
-    if len(measurement_files) == 0:
-        # if files have been updated, only combine updated files.
-        if any('updated' in f for f in hdf5_files):
-            hdf5_files = [f for f in hdf5_files if 'updated' in f]
-        combine_hdf5(hdf5_files, output_file)
-        
+    # If chunks have been stitched, combine sides and save to output file
+    if len(files_result) == 2:
+        if wt_files[0].endswith('.hdf5'):
+            # if files have been updated, only combine updated files.
+            if any('updated' in f for f in hdf5_files):
+                hdf5_files = [f for f in hdf5_files if 'updated' in f]
+            combine_hdf5(hdf5_files, output_file)
+        elif wt_files[0].endswith('.parquet'):
+            combine_sides(wt_files, output_file)            
+    # If whiskers and measurement files are present (meaning chunks havn't been stitched), combine those files
     else:
         if args.feature is None:
-                    # Time the process
+            # Time the process
             start = time.time() 
           
             # If -f is not provided, combine whiskers and measurement files and save to output file
-            combine_measurement_files(whiskers_files, measurement_files, sides, output_file)
+            combine_measurement_files(wt_files, measurement_files, sides, output_file)
                     
             print(f"Time taken: {time.time() - start}")
         else:
             # If -f is provided, extract feature and save to output file
             
             # first reassess whisker ids for each side
-            side_whiskers_files = {side: [f for f in whiskers_files if side in f] for side in sides}
+            side_whiskers_files = {side: [f for f in wt_files if side in f] for side in sides}
             
             # Initialize variables
             updated_summary = {}
