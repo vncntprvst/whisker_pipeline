@@ -1,0 +1,131 @@
+#!/bin/sh
+#SBATCH -t 05:00:00
+#SBATCH -n 16    
+#SBATCH --mem=8G
+#SBATCH --gres=gpu:1
+#SBATCH --constraint=24GB
+#SBATCH --job-name=dlc_video_analysis    
+#SBATCH -o ./slurm_logs/dlc_video_analysis_sing-%j.out
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=prevosto@mit.edu
+
+# Use the following command to submit the job:
+# sbatch dlc_video_analysis_singularity.sh [src_video_dir] [config_file]
+
+echo -e '\n'
+echo '#########################'
+echo '##  DLC analyze video.sh  ##'
+echo '#########################'
+echo -e '\n'
+
+# Check resource availability and usage if $SLURM_JOB_ID is not empty (i.e. if we are running on a cluster)
+if [ ! -z "$SLURM_JOB_ID" ]; then
+    echo "Starting job $SLURM_JOB_ID on $(hostname) at $(date)"
+    echo "Requested CPUs: $SLURM_CPUS_ON_NODE (Available CPUs: $(nproc --all))"
+    echo "Requested memory: $SLURM_MEM_PER_NODE (Available memory: $(free -h | grep Mem | awk '{print $2}'))"
+    echo "Requested walltime: $(squeue -j $SLURM_JOB_ID -h --Format TimeLimit)"
+else
+    echo "Starting job locally on $(hostname) at $(date)"
+fi
+echo -e '\n'
+
+# Variables
+source ../utils/set_globals.sh $USER
+SRC_VIDEO_DIR=$1
+CONFIG_FILE=${2:-$OM_BASE_DIR/$PROJECT/$DLC_NETWORK/config.yaml}
+
+if [ -d "${HPCC_IMAGE_REPO}" ]; then
+    IMAGE_REPO=$HPCC_IMAGE_REPO
+else
+    IMAGE_REPO=$PWD/../containers/
+fi
+IMAGE_REPO=$(bash ../utils/full_path_substitution.sh $IMAGE_REPO)
+# echo "IMAGE_REPO: $IMAGE_REPO"
+SINGULARITY_IMAGE="$IMAGE_REPO/deeplabcut_latest-core.sif"
+echo "Using singularity image: $SINGULARITY_IMAGE"
+
+# List of accepted video formats
+ACCEPTED_FORMATS="mp4|avi|mov"
+
+# Determine the video type from the files in the source directory
+VIDEO_TYPE=$(ls $SRC_VIDEO_DIR | grep -o -m 1 -P "\.($ACCEPTED_FORMATS)$" | grep -o -P '\w+$')
+
+# Check if VIDEO_TYPE is empty and handle the case
+if [ -z "$VIDEO_TYPE" ]; then
+  echo "No accepted video formats found in the source directory."
+  exit 1
+fi
+
+# Determine Shuffle Number from the config file
+PROJECT_DIR=$(dirname "$CONFIG_FILE")
+ITERATION=$(grep "iteration" "$CONFIG_FILE" | awk '{print $2}')
+DLC_MODELS_DIR="$PROJECT_DIR/dlc-models"
+ITERATION_DIR="$DLC_MODELS_DIR/iteration-$ITERATION"
+SHUFFLE_DIR=$(find "$ITERATION_DIR" -type d -name "*shuffle*" | sort -V | tail -n 1)
+SHUFFLE_NUMBER=$(basename "$SHUFFLE_DIR" | grep -oP "shuffle\K\d+")
+if [ -z "$SHUFFLE_NUMBER" ]; then
+    SHUFFLE_NUMBER=1
+else
+    echo "Most recent shuffle number: $SHUFFLE_NUMBER"
+fi
+echo -e '\n'
+
+# Determine if SRC_VIDEO_DIR is already within the scratch directory structure
+if [[ "$SRC_VIDEO_DIR" == "$SCRATCH_ROOT"* ]]; then
+    echo "Source directory is already within the scratch space."
+    DEST_VIDEO_DIR="$SRC_VIDEO_DIR"
+else
+    echo "Source directory is not in the scratch space. Copying files..."
+
+    BASE_NAME=$(basename "$SRC_VIDEO_DIR")    
+    DEST_VIDEO_DIR="$PROC_BASE_DIR/$BASE_NAME"
+    echo "DEST_VIDEO_DIR: $DEST_VIDEO_DIR"
+
+    mkdir -p "$DEST_VIDEO_DIR"
+
+    rsync -Pavu --include="*.$VIDEO_TYPE" --exclude="*" "$SRC_VIDEO_DIR/" "$DEST_VIDEO_DIR/"
+fi
+echo -e '\n'
+
+# Load the necessary Singularity module
+module load openmind8/apptainer/1.1.7
+
+# Test GPU availability with error handling within the Singularity container
+GPU_CHECK=$(singularity exec --nv -B "$DEST_VIDEO_DIR":"$DEST_VIDEO_DIR","$CONFIG_FILE":"$CONFIG_FILE" "$SINGULARITY_IMAGE" /usr/bin/python3 -c "import tensorflow as tf; print(tf.config.list_physical_devices('GPU'))" 2>&1)
+
+if [[ "$GPU_CHECK" == *"[]"* ]]; then
+    echo "Error: No GPU detected. Exiting."
+    exit 1
+elif [[ "$GPU_CHECK" == *"Error"* || "$GPU_CHECK" == *"Traceback"* ]]; then
+    echo "Error: An error occurred while checking for GPUs."
+    echo "$GPU_CHECK"
+    exit 1
+else
+    echo "GPU detected:"
+    echo "$GPU_CHECK"
+
+    GPU_ID=$(echo "$GPU_CHECK" | grep -oP "name='/physical_device:GPU:\K\d+(?=')")
+    if [ "$GPU_ID" != "0" ] && [ "$GPU_ID" != "1" ]; then
+        GPU_ID=0
+    fi
+fi
+echo -e '\n'
+
+# Replace directory paths with true paths
+TRUE_DEST_VIDEO_DIR=$(bash ../utils/full_path_substitution.sh $DEST_VIDEO_DIR)
+TRUE_SRC_VIDEO_DIR=$(bash ../utils/full_path_substitution.sh $SRC_VIDEO_DIR)
+TRUE_CONFIG_FILE=$(bash ../utils/full_path_substitution.sh $CONFIG_FILE)
+TRUE_CONFIG_DIR=$(dirname "$TRUE_CONFIG_FILE")
+
+echo "TRUE_DEST_VIDEO_DIR: $TRUE_DEST_VIDEO_DIR"
+echo "TRUE_SRC_VIDEO_DIR: $TRUE_SRC_VIDEO_DIR"
+echo "TRUE_CONFIG_DIR: $TRUE_CONFIG_DIR"
+
+# Define the script directory as the directory where this script is located
+SCRIPT_DIR=${SLURM_SUBMIT_DIR:-$(dirname "$0")}
+echo "SCRIPT_DIR: $SCRIPT_DIR"
+
+# Run the DeepLabCut analysis within the Singularity container
+singularity exec --nv -B "$TRUE_DEST_VIDEO_DIR":"$TRUE_DEST_VIDEO_DIR","$TRUE_SRC_VIDEO_DIR":"$TRUE_SRC_VIDEO_DIR","$TRUE_CONFIG_DIR":"$TRUE_CONFIG_DIR","$SCRIPT_DIR":"$SCRIPT_DIR" "$SINGULARITY_IMAGE" /usr/bin/python3 "$SCRIPT_DIR/run_dlc_analysis.py" --config "$TRUE_CONFIG_DIR/config.yaml" --videos "$TRUE_DEST_VIDEO_DIR" --dest_dir "$TRUE_SRC_VIDEO_DIR" --videotype "$VIDEO_TYPE" --shuffle_num "$SHUFFLE_NUMBER" --gpu "$GPU_ID"
+
+echo -e "\nDone at $(date)"
