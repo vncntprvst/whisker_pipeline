@@ -1,9 +1,8 @@
 #!/bin/sh
-#SBATCH -t 05:00:00
-#SBATCH -n 16    
+#SBATCH -t 00:30:00
+#SBATCH -n 4    
 #SBATCH --mem=8G
-#SBATCH --gres=gpu:1
-#SBATCH --constraint=24GB
+#SBATCH --gres=gpu:a100:1                       # For any other GPU, ask --gres=gpu:1, and next line SBATCH --constraint=24GB
 #SBATCH --job-name=dlc_video_analysis    
 #SBATCH -o ./slurm_logs/dlc_video_analysis_sing-%j.out
 #SBATCH --mail-type=ALL
@@ -34,13 +33,6 @@ source ../utils/set_globals.sh $USER
 SRC_VIDEO_DIR=$1
 CONFIG_FILE=${2:-$OM_BASE_DIR/$PROJECT/$DLC_NETWORK/config.yaml}
 
-if [ -d "${HPCC_IMAGE_REPO}" ]; then
-    IMAGE_REPO=$HPCC_IMAGE_REPO
-else
-    IMAGE_REPO=$PWD/../containers/
-fi
-IMAGE_REPO=$(bash ../utils/full_path_substitution.sh $IMAGE_REPO)
-# echo "IMAGE_REPO: $IMAGE_REPO"
 SINGULARITY_IMAGE="$IMAGE_REPO/deeplabcut_latest-core.sif"
 echo "Using singularity image: $SINGULARITY_IMAGE"
 
@@ -76,8 +68,8 @@ if [[ "$SRC_VIDEO_DIR" == "$SCRATCH_ROOT"* ]]; then
     DEST_VIDEO_DIR="$SRC_VIDEO_DIR"
 else
     echo "Source directory is not in the scratch space. Copying files..."
-
-    BASE_NAME=$(basename "$SRC_VIDEO_DIR")    
+ 
+    BASE_NAME=$(basename "$(dirname "$SRC_VIDEO_DIR")")/$(basename "$SRC_VIDEO_DIR")
     DEST_VIDEO_DIR="$PROC_BASE_DIR/$BASE_NAME"
     echo "DEST_VIDEO_DIR: $DEST_VIDEO_DIR"
 
@@ -88,7 +80,20 @@ fi
 echo -e '\n'
 
 # Load the necessary Singularity module
-module load openmind8/apptainer/1.1.7
+if [ "$OS_VERSION" = "centos7" ]; then
+    echo "Loading modules for CentOS 7."
+    module load openmind/singularity/3.10.4
+elif [ "$OS_VERSION" = "rocky8" ]; then
+    echo "Loading modules for Rocky 8."
+    module load openmind8/apptainer
+else
+    # Check if docker is running
+    if ! docker info >/dev/null 2>&1; then
+        echo "Docker is not running"
+    else
+        echo "Docker is running" 
+    fi
+fi
 
 # Test GPU availability with error handling within the Singularity container
 GPU_CHECK=$(singularity exec --nv -B "$DEST_VIDEO_DIR":"$DEST_VIDEO_DIR","$CONFIG_FILE":"$CONFIG_FILE" "$SINGULARITY_IMAGE" /usr/bin/python3 -c "import tensorflow as tf; print(tf.config.list_physical_devices('GPU'))" 2>&1)

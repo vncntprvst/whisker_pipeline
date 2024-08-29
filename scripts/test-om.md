@@ -54,3 +54,28 @@ VIDEO_PATH=/nese/mit/group/fan_wang/all_staff/Vincent/Ephys/whisker_asym/sc012/s
 -rw-r--r-- 1 prevosto wanglab               1801893306 Jan 19  2023 sc012_0119_003_20230119-193528_HSCam.avi
 ```
 sbatch dlc_video_analysis_singularity.sh $VIDEO_PATH
+sc012_0119_001_20230119-190517_HSCam.avi
+`100%|█████████▉| 363500/363508 [1:06:40<00:00, 84.03it/s]`
+sc012_0119_003_20230119-193528_HSCam.avi
+`100%|█████████▉| 178800/178885 [35:16<00:01, 83.77it/s]`
+
+Miao's job with A100:
+```bash
+Job ID: 38108987
+Cluster: openmind7
+User/Group: miaomjin/wanglab
+State: COMPLETED (exit code 0)
+Nodes: 1
+Cores per node: 4
+CPU Utilized: 00:16:19
+CPU Efficiency: 21.95% of 01:14:20 core-walltime
+Job Wall-clock time: 00:18:35
+Memory Utilized: 6.87 GB
+Memory Efficiency: 85.89% of 8.00 GB
+...
+1,013,568,658 100%   12.94MB/s    0:01:14
+sent 1,013,816,293 bytes  received 38 bytes  13,428,030.87 bytes/sec
+...
+100%|██████████| 100800/100800 [16:00<00:00, 128.27it/s]
+101808it [16:08, 129.43it/s]
+```
