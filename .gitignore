@@ -1,18 +1,42 @@
+# Ignore documentation files
 Documentations/
+
+# Ignore pipeline information
 defaultPipelineInfo/
+
+# Ignore package directories
 packages/
+
+# Ignore third-party functions
 ThirdPartyFunctions/
+
+# Ignore old and test directories
 old/
 tests/
+
+# Ignore autosave files
 *.asv
+
+# Ignore specific markdown file
 TBD.md
+
+# Ignore specific measurement datatype file
 DependentFunctions/+Whisker/measurements_datatype.m
+
+# Ignore Python cache files and directories
+Python/__pycache__/
 Python/d
+Python/notebooks/d
+Python/notebooks/images/
+Python/test/
+
+# Ignore specific Python cache files
 Python/__pycache__/whiskerpad.cpython-37.pyc
 Python/__pycache__/whiskerpad.cpython-310.pyc
-Python/notebooks/d
-d
-Python/test/
-Python/notebooks/images/
-scripts/dlc/slurm_logs/
 
+# Ignore slurm log directories
+scripts/dlc/slurm_logs/
+scripts/wt/slurm_logs/
+
+# Ignore miscellaneous files/directory
+d

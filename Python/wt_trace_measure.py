@@ -11,8 +11,8 @@ import WhiskiWrap as ww
 from WhiskiWrap import load_whisker_data as lwd
 import whiskerpad as wp
 # Check that whisk binaries are executables and update permissions if necessary
-from wwutils.whisk_permissions import update_permissions
-update_permissions()
+# from wwutils.whisk_permissions import update_permissions
+# update_permissions()
 
 def trace_measure(input_file, base_name, output_dir, nproc, splitUp):
         
@@ -91,6 +91,13 @@ def trace_measure(input_file, base_name, output_dir, nproc, splitUp):
         # reorder side_im_coord to fit -vf crop format width:height:x:y
         side_im_coord = [side_im_coord[2], side_im_coord[3], side_im_coord[0], side_im_coord[1]]
         
+        # Print parameters
+        print(f'Number of trace processes: {nproc}')
+        print(f'Output directory: {output_dir}')
+        print(f'Chunk size: {chunk_size}')
+        print(f'Output filename: {output_filename}')
+        print(f'Chunk name pattern: {chunk_name_pattern}')
+        
         # The `face` argument below is the side of the video frame where the face is located. 
         # That tells `measure` which side of traced objects should be considered the follicle.
         result_dict = ww.interleaved_split_trace_and_measure(            
@@ -110,7 +117,7 @@ def trace_measure(input_file, base_name, output_dir, nproc, splitUp):
         )      
 
         time_track = time.time() - start_time_track
-        print(f'Tracking took {time_track} seconds.')
+        print(f'Tracking took {time_track} seconds.', flush=True)
 
         # Reassess whisker IDs
         # lwd.update_wids(output_filename)
@@ -136,7 +143,7 @@ def trace_measure(input_file, base_name, output_dir, nproc, splitUp):
 
     # Overall time elapsed
     time_elapsed = time.time() - start_time
-    print(f'Time for whole script: {time_elapsed} seconds')
+    print(f'Time for whole script: {time_elapsed} seconds', flush=True)
 
     # Close the log file
     sys.stdout.close()

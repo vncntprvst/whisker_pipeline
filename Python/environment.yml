@@ -19,3 +19,10 @@ dependencies:
     - pyarrow
     - joblib
 
+# Equivalent to:
+# conda create -n whisker_tracking -c conda-forge -c defaults python=3.10 
+# conda activate whisker_tracking
+# conda install -c conda-forge matplotlib pandas pytables statsmodels opencv ipykernel
+# conda install -c conda-forge ffmpeg-python=0.2.0 svt-av1 
+# ffmpeg=6.0 - this may not be necessary 
+# pip install WhiskiWrap pyarrow joblib

@@ -99,5 +99,6 @@ echo -e "STORE_BASE_DIR: \e[1m\e[95m$STORE_BASE_DIR\e[0m"
 echo -e "PROC_BASE_DIR: \e[1m\e[95m$PROC_BASE_DIR\e[0m"
 echo -e "PIPELINE_CODE_DIR: \e[1m\e[95m$PIPELINE_CODE_DIR\e[0m"
 echo -e "IMAGE_REPO: \e[1m\e[95m $IMAGE_REPO\e[0m" 
+echo -e "OS_VERSION: \e[1m\e[95m$OS_VERSION\e[0m"
 
 echo -e '\n'

@@ -1,57 +1,94 @@
 #!/bin/bash                      
-#SBATCH -t 10:00:00                 # walltime
-#SBATCH -n 80                       # nb CPU (hyperthreaded) cores - 40 for node078 and above. Up to 128. May be split across nodes 
-#SBATCH --mem=32G
+#SBATCH -t 00:30:00             # Total wall time
+#SBATCH -N 2                    # number of nodes in this job
+#SBATCH -n 200                  # Total number of tasks (cores)
+#SBATCH --ntasks-per-node=100   # Number of tasks (cores) per node
+#SBATCH --mem=75G               # Memory per node
+#SBATCH --job-name=wt_measure   
+#SBATCH -o ./slurm_logs/wt_measure-%j.out
 #SBATCH --mail-user=prevosto@mit.edu
-#SBATCH --mail-type=BEGIN,END,FAIL,REQUEUE,TIME_LIMIT
+#SBATCH --mail-type=ALL
 
-# Template usage: sbatch scripts/whisk_trace_and_measure.sh 'file name' 'base name' 'project directory' 'data directory' 'userID'
+# 120 Cores: ~43 GB
+# 128 Cores: ~46 GB
+# 200 Cores: ~71 GB
 
-source /etc/profile.d/modules.sh
-module load openmind/singularity   
-# module use /cm/shared/modulefiles
-# module load openmind8/apptainer/1.1.6
+# Template usage: sbatch whisk_trace_and_measure.sh [file_path] [base_name]
+
+echo -e '\n'
+echo '##################################'
+echo '##  whisk trace and measure.sh  ##'
+echo '##################################'
+echo -e '\n'
+
+# Check resource availability and usage if $SLURM_JOB_ID is not empty (i.e. if we are running on a cluster)
+if [ ! -z "$SLURM_JOB_ID" ]; then
+    echo "Starting job $SLURM_JOB_ID on $(hostname) at $(date)"
+    echo "Requested CPUs: $SLURM_CPUS_ON_NODE (Available CPUs: $(nproc --all))"
+    echo "Requested memory: $SLURM_MEM_PER_NODE (Available memory: $(free -h | grep Mem | awk '{print $2}'))"
+    echo "Requested walltime: $(squeue -j $SLURM_JOB_ID -h --Format TimeLimit)"
+else
+    echo "Starting job locally on $(hostname) at $(date)"
+fi
+echo -e '\n'
 
 # Data info
-fName=$1                                    # video file name
-baseName=$2                                 # used to save chunks, e.g., sc010_0207_3200
-baseName="${baseName:='chunk'}"
-projectDir=$3                               # project directory, e.g., data/whisker_asym
-sessionDir=$4                               # session name, e.g., sc010/sc010_0207 
+source ../utils/set_globals.sh $USER
+file_name=$(basename "$1")  # get video file name from path
+file_path=$(dirname "$1")  # get video file path
+proc_num=${2:-"120"}  # number of processes to use; default is 100
+base_name=${3:-"${file_name%.*}"}  # used to save chunks, e.g., sc010_0207_3200; if not provided, use the file name without extension
 
-# User info (in case this is run on someone else' data)
-userID=$5
-userID="${userID:=$USER}"
-# userDir="/om2/user/$userID"   
-userDir="/scratch2/scratch/Wed/$userID"  
+# used to save chunks, e.g., sc010_0207_3200; if not provided, use the file name
 
-# Set directory
-dataDir="$userDir/$projectDir/$sessionDir"  # where the data is
-dataDir="${dataDir:=$PWD}"
+echo "File path: $file_path"
+echo "File name: $file_name"
+echo "Base name: $base_name"
 
-# Call the whisk container 
-# cd $dataDir && \
-# mkdir -p "$dataDir/WT" && \
-# apptainer exec \
-#      -B $dataDir:/data \
-#      /om2/group/wanglab/images/whisk.simg \
-#      python -c "import WhiskiWrap; from WhiskiWrap import FFmpegReader; \
-# 	 WhiskiWrap.interleaved_read_trace_and_measure(FFmpegReader('/data/$fName'), \
-#      '/data/WT', chunk_name_pattern='$baseName%08d.tif', \
-#      h5_filename='$baseName.hdf5',n_trace_processes=80)"
+# Locate wt_trace_measure and full path substitution scripts
+find_script() {
+    local script_name=$1
+    for path in "../../Python/$script_name" "../Python/$script_name" "../utils/$script_name" "./utils/$script_name"; do
+        if [ -f $path ]; then
+            echo $(realpath $path)
+            return
+        fi
+    done
+    echo -e "\e[31mError:\e[0m File \e[37;103m$script_name\e[0m not found \n"
+    exit 1
+}
 
-# With cutting video in halves
-cd $dataDir && \
-mkdir -p "$dataDir/WT" && \
-singularity exec \
-     -B $dataDir:/data -B /om2/user/prevosto/scripts/:/scripts \
-     /om2/group/wanglab/images/whisk.simg \
-     python /scripts/cut_trace_measure.py --input $fName --base $baseName --nproc 80
+# Get script and substitution script paths
+script_path=$(find_script "wt_trace_measure.py")
+full_path_script=$(find_script "full_path_substitution.sh")
 
-# debugging
-# source /etc/profile.d/modules.sh
-# module load openmind/singularity 
-# cd /scratch2/scratch/Wed/vincent/whisker_asym/sc014/sc014_0324
-# baseName='sc014_0324_001'
-# fName='sc014_0324_001_TopCam0.mp4'
-# dataDir=$PWD
+# Substitute full paths
+export file_path=$(bash $full_path_script $file_path)
+export script_path=$(bash $full_path_script $(dirname $script_path))
+
+# Singularity image
+image_path="$IMAGE_REPO/whisk-ww-nb_latest.sif"
+echo "Using singularity image: $image_path"
+
+# Load the necessary Singularity module
+if [ "$OS_VERSION" = "centos7" ]; then
+    echo "Loading modules for CentOS 7."
+    module load openmind/singularity/3.10.4
+elif [ "$OS_VERSION" = "rocky8" ]; then
+    echo "Loading modules for Rocky 8."
+    module load openmind8/apptainer
+else
+    # Check if docker is running
+    if ! docker info >/dev/null 2>&1; then
+        echo "Docker is not running"
+    else
+        echo "Docker is running" 
+    fi
+fi
+
+# Run the script
+singularity exec -B $script_path:/scripts -B $file_path:/data $image_path python /scripts/wt_trace_measure.py /data/$file_name -b $base_name -s -p $proc_num
+
+# End of script
+echo -e '\n'
+echo "Job finished at $(date)"
