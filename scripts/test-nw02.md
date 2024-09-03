@@ -26,15 +26,16 @@ cp /mnt/md0/data/Vincent/whisker_asym/sc012/sc012_0119/sc012_0119_001_20230119-1
 ```bash
 conda activate whisker_tracking
 cd /home/wanglab/code/behavior_analysis/whisker_tracking/whisker_pipeline/Python
-file_path= "/home/wanglab/data/whisker_asym/wa001/test"
-# "/home/wanglab/data/whisker_asym/sc012/test_full_length"
+# file_path= "/home/wanglab/data/whisker_asym/wa001/test"
+file_path="/home/wanglab/data/whisker_asym/sc012/test_full_length"
 # "/home/wanglab/data/whisker_asym/sc012/test"
-file_name= "WA001_080224_01_TopCam_10s.mp4"
-# "sc012_0119_001_20230119-190517_HSCam.avi"
+# file_name="WA001_080224_01_TopCam_10s.mp4"
+file_name="sc012_0119_001_20230119-190517_HSCam.avi"
 # "sc012_0119_001_20230119_10sWhisking.mp4" 
-base_name= "WA001_080224_01"
-# "sc012_0119_001"
+# base_name="WA001_080224_01"
+base_name="sc012_0119_001"
 
+# Without stitching:
 python wt_trace_measure_no_stitch.py $file_path/$file_name -s -b $base_name -p 40
 
 # For midpoint:
@@ -50,15 +51,28 @@ python combine_sides_para_with_shared_list.py $file_path/WT -b $base_name -ff za
 #                   Time taken: 4818.107927322388 (~80mn)
 # du -sh sc012_0119_001.zarr/
 # 37G     sc012_0119_001.zarr/
+
+# With stitching to parquet:
+python wt_trace_measure.py $file_path/$file_name -b $base_name -s -p 40
+# nw2 full length tracking on sc012_0119_001_20230119-190517_HSCam.avi (3.4GB) 
+#     left side Tracking took 3617.7535054683685 seconds.
+#     right side Tracking took 2382.4000651836395 seconds.
+#     Time for whole script: 6000.442905664444 seconds (~100mn)
 ```
 
 # With Docker
 file_path="/home/wanglab/data/whisker_asym/sc012/test"
 file_name="sc012_0119_001_20230119_10sWhisking.mp4"
 base_name="sc012_0119_001"
-script_path="/home/wanglab/code/whisker_tracking/whisker_pipeline/Python"
-nproc=16
+script_path="/home/wanglab/code/behavior_analysis/whisker_tracking/whisker_pipeline/Python"
+nproc=40
 
-docker run --rm -v $file_path:/data -v $script_path:/scripts wanglabneuro/whisk-ww:nb-0.2.0 python /scripts/wt_trace_measure_no_stitch.py /data/$file_name -s -b $base_name -p $nproc
+docker run --rm -v $file_path:/data -v $script_path:/scripts wanglabneuro/whisk-ww python /scripts/wt_trace_measure_no_stitch.py /data/$file_name -s -b $base_name -p $nproc
 
-nb-0.2.0
+file_path="/home/wanglab/data/whisker_asym/test"
+file_name="test.mp4"
+base_name="sc012_0119_001"
+script_path="/home/wanglab/code/behavior_analysis/whisker_tracking/whisker_pipeline/Python"
+nproc=40
+
+docker run --rm -v $file_path:/data -v $script_path:/scripts wanglabneuro/whisk-ww python /scripts/wt_trace_measure.py /data/$file_name -b $base_name -s -p $nproc

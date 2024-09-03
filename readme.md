@@ -10,7 +10,8 @@ sudo apt-get remove --purge ffmpeg svt-av1
 sudo apt-get autoremove
 sudo apt-get autoclean
 ```
-A alternative solution is to use the provided container (`wanglabneuro/whisk-ww`). See the Scripts directory. 
+An alternative solution is to use the provided container (`wanglabneuro/whisk-ww`). Pull the image with `docker pull wanglabneuro/whisk-ww:latest`.
+See the Scripts directory. 
 
 
 * If using **Matlab**:  
