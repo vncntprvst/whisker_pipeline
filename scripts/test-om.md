@@ -80,6 +80,42 @@ sent 1,013,816,293 bytes  received 38 bytes  13,428,030.87 bytes/sec
 101808it [16:08, 129.43it/s]
 ```
 
+**Additional tests**
+Filter predictions:  
+```bash
+srun -n 4 --gres=gpu:1 --mem=16G -t 01:00:00 --pty bash
+cd /om/scratch/tmp/Vincent/whisker_asym/sc016/sc016_0630/
+conda activate DEEPLABCUT
+export HDF5_USE_FILE_LOCKING=FALSE
+ipython -i
+```
+```python
+import deeplabcut as dlc
+config_path = '/weka/scratch/weka/wanglab/prevosto/data/whisker_asym/face_poke-Vincent-2024-02-29/config.yaml'
+dlc.filterpredictions(config_path, ['/om/scratch/tmp/Vincent/whisker_asym/sc016/sc016_0630/sc016_0630_001_TopCam0.mp4'], videotype='mp4', shuffle=3, save_as_csv=True)
+```
+
+or equivalent with singularity:  
+```bash
+srun -n 4 --gres=gpu:1 --mem=16G -t 01:00:00 --pty bash
+module load openmind/singularity/3.10.4
+export HDF5_USE_FILE_LOCKING=FALSE
+data_path="/om/scratch/tmp/Vincent/whisker_asym/sc016/sc016_0630"
+config_path="/weka/scratch/weka/wanglab/prevosto/data/whisker_asym/face_poke-Vincent-2024-02-29"
+image_path="/om2/group/wanglab/images/deeplabcut_latest-core.sif"
+singularity exec -B "$data_path:/data" -B "$config_path:/config" "$image_path" /usr/bin/python3 -c "import deeplabcut as dlc; dlc.filterpredictions('/config/config.yaml', ['/data/sc016_0630_001_TopCam0.mp4'], videotype='mp4', shuffle=3, save_as_csv=True)"
+```
+
+Plot trajectories:  
+```bash
+singularity exec -B "$data_path:/data" -B "$config_path:/config" "$image_path" /usr/bin/python3 -c "import deeplabcut as dlc; dlc.plot_trajectories('/config/config.yaml', ['/data/sc016_0630_001_TopCam0.mp4'], videotype='mp4', shuffle=3, filtered=True)"
+```
+
+Create Labeled Videos:  
+```bash
+singularity exec -B "$data_path:/data" -B "$config_path:/config" "$image_path" /usr/bin/python3 -c "import deeplabcut as dlc; dlc.create_labeled_video('/config/config.yaml', ['/data/sc016_0630_001_TopCam0.mp4'], videotype='mp4', shuffle=3, filtered=True)"
+```
+
 
 ### Whisker Tracking
 First testing with environment - then with singularity.

@@ -1,8 +1,8 @@
 #!/bin/sh
-#SBATCH -t 00:30:00
+#SBATCH -t 03:30:00
 #SBATCH -n 4    
 #SBATCH --mem=8G
-#SBATCH --gres=gpu:a100:1                       # For any other GPU, ask --gres=gpu:1, and next line SBATCH --constraint=24GB
+#SBATCH --gres=gpu:a100:1                       # For any other GPU, ask --gres=gpu:1, and next line SBATCH --constraint=24GB  (or 32GB)
 #SBATCH --job-name=dlc_video_analysis    
 #SBATCH -o ./slurm_logs/dlc_video_analysis_sing-%j.out
 #SBATCH --mail-type=ALL
@@ -28,10 +28,16 @@ else
 fi
 echo -e '\n'
 
-# Variables
+# Variables and arguments
 source ../utils/set_globals.sh $USER
 SRC_VIDEO_DIR=$1
 CONFIG_FILE=${2:-$OM_BASE_DIR/$PROJECT/$DLC_NETWORK/config.yaml}
+FILTER_LABELS=${3:-"True"}
+if [ "$FILTER_LABELS" = "True" ]; then
+    export HDF5_USE_FILE_LOCKING=FALSE
+fi
+PLOT_TRAJECTORIES=${4:-"True"}
+CREATE_LABELED_VIDEO=${5:-"False"}  
 
 SINGULARITY_IMAGE="$IMAGE_REPO/deeplabcut_latest-core.sif"
 echo "Using singularity image: $SINGULARITY_IMAGE"
