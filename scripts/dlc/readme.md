@@ -71,7 +71,7 @@ On the cluster, with container:
 - Open XFast desktop
 - Open a terminal and request a GPU node
 ```bash
-srun --pty --x11 --gres=gpu:1 --mem=16G --time=1:00:00 /bin/bash
+srun -n 4 --x11 --gres=gpu:1 --mem=16G -t 01:00:00 --pty bash
 ```
 - Start the GUI
 ```bash
