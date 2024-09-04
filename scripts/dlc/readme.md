@@ -8,9 +8,18 @@ cd /om/user/$USER/code/dlc
 sbatch dlc_video_analysis_singularity.sh /path/to/video/files
 ```
 
+To edit files, edit locally and upload via WinSCP, or ssh to openmind, request compute node (e.g., `ssh -t om7 "srun -n 1 -t 01:00:00 --pty bash"`), then update the SSH `config` file and open a remote window in VSCode. 
+
 ### Run the GUI
 
-On a local machine, with container:  
+On a local machine  
+- with an environment: 
+```bash
+cd /home/wanglab/data
+conda activate DEEPLABCUT
+python -m deeplabcut
+```
+- with a container:  
 ```bash
 docker run -it --rm \
     --gpus all \
