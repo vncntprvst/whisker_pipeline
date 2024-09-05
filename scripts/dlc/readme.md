@@ -7,6 +7,7 @@ ssh om7
 cd /om/user/$USER/code/dlc
 sbatch dlc_video_analysis_singularity.sh /path/to/video/files
 ```
+(you can also directly connect and go to the script directory, e.g., `ssh -t om7 "cd /om/user/prevosto/code/whisker_pipeline/scripts/dlc && bash"`).  
 
 To edit files, edit locally and upload via WinSCP, or ssh to openmind, request compute node (e.g., `ssh -t om7 "srun -n 1 -t 01:00:00 --pty bash"`), then update the SSH `config` file and open a remote window in VSCode. 
 

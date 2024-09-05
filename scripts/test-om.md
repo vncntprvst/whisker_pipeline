@@ -59,6 +59,7 @@ sc012_0119_001_20230119-190517_HSCam.avi
 sc012_0119_003_20230119-193528_HSCam.avi
 `100%|█████████▉| 178800/178885 [35:16<00:01, 83.77it/s]`
 
+**6**
 Miao's job with A100:
 ```bash
 Job ID: 38108987
@@ -78,6 +79,31 @@ sent 1,013,816,293 bytes  received 38 bytes  13,428,030.87 bytes/sec
 ...
 100%|██████████| 100800/100800 [16:00<00:00, 128.27it/s]
 101808it [16:08, 129.43it/s]
+```
+
+**7**
+Job with A100 on two videos (already in scratch space, 606MB and 364MB).
+```bash
+ll /om/scratch/tmp/Vincent/whisker_asym/sc016/sc016_0630/
+-rw-r--r-- 1 prevosto wanglab 635957494 Jun 30  2023 sc016_0630_001_TopCam0.mp4
+-rw-r--r-- 1 prevosto wanglab 381930622 Jun 30  2023 sc016_0630_002_TopCam0.mp4
+```
+Timed out ! Just too many frames to process (1328958 and 786933):
+```bash
+Job ID: 38152211
+Cluster: openmind7
+User/Group: prevosto/wanglab
+State: TIMEOUT (exit code 0)
+Nodes: 1
+Cores per node: 4
+CPU Utilized: 00:00:05
+CPU Efficiency: 0.01% of 14:00:40 core-walltime
+Job Wall-clock time: 03:30:10
+Memory Utilized: 7.09 GB
+Memory Efficiency: 88.67% of 8.00 GB
+
+100%|█████████▉| 1328900/1328958 [2:37:51<00:00, 133.98it/s]
+53%|█████▎    | 417057/786933 [49:23<45:20, 135.98it/s]slurmstepd: error: *** JOB 38152211 ON node102 CANCELLED AT 2024-09-04T16:51:00 DUE TO TIME LIMIT ***
 ```
 
 **Additional tests**
@@ -116,6 +142,11 @@ Create Labeled Videos:
 singularity exec -B "$data_path:/data" -B "$config_path:/config" "$image_path" /usr/bin/python3 -c "import deeplabcut as dlc; dlc.create_labeled_video('/config/config.yaml', ['/data/sc016_0630_001_TopCam0.mp4'], videotype='mp4', shuffle=3, filtered=True)"
 ```
 
+**8**
+Testing added options on small video first
+SOURCE_PATH=/nese/mit/group/fan_wang/all_staff/Vincent/Ephys/whisker_asym/sc005/sc005_1213/
+CONFIG_FILE=/weka/scratch/weka/wanglab/prevosto/data/whisker_asym/face_poke-Vincent-2024-02-29/config.yaml
+sbatch dlc_video_analysis_singularity.sh $SOURCE_PATH $CONFIG_FILE True True True
 
 ### Whisker Tracking
 First testing with environment - then with singularity.

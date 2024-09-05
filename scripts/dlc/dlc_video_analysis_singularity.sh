@@ -9,7 +9,7 @@
 #SBATCH --mail-user=prevosto@mit.edu
 
 # Use the following command to submit the job:
-# sbatch dlc_video_analysis_singularity.sh [src_video_dir] [config_file]
+# sbatch dlc_video_analysis_singularity.sh [src_video_dir] [config_file] [filter_labels] [plot_trajectories] [create_labeled_video]
 
 echo -e '\n'
 echo '#########################'
@@ -137,6 +137,6 @@ SCRIPT_DIR=${SLURM_SUBMIT_DIR:-$(dirname "$0")}
 echo "SCRIPT_DIR: $SCRIPT_DIR"
 
 # Run the DeepLabCut analysis within the Singularity container
-singularity exec --nv -B "$TRUE_DEST_VIDEO_DIR":"$TRUE_DEST_VIDEO_DIR","$TRUE_SRC_VIDEO_DIR":"$TRUE_SRC_VIDEO_DIR","$TRUE_CONFIG_DIR":"$TRUE_CONFIG_DIR","$SCRIPT_DIR":"$SCRIPT_DIR" "$SINGULARITY_IMAGE" /usr/bin/python3 "$SCRIPT_DIR/run_dlc_analysis.py" --config "$TRUE_CONFIG_DIR/config.yaml" --videos "$TRUE_DEST_VIDEO_DIR" --dest_dir "$TRUE_SRC_VIDEO_DIR" --videotype "$VIDEO_TYPE" --shuffle_num "$SHUFFLE_NUMBER" --gpu "$GPU_ID"
+singularity exec --nv -B "$TRUE_DEST_VIDEO_DIR":"$TRUE_DEST_VIDEO_DIR","$TRUE_SRC_VIDEO_DIR":"$TRUE_SRC_VIDEO_DIR","$TRUE_CONFIG_DIR":"$TRUE_CONFIG_DIR","$SCRIPT_DIR":"$SCRIPT_DIR" "$SINGULARITY_IMAGE" /usr/bin/python3 "$SCRIPT_DIR/run_dlc_analysis.py" --config "$TRUE_CONFIG_DIR/config.yaml" --videos "$TRUE_DEST_VIDEO_DIR" --dest_dir "$TRUE_SRC_VIDEO_DIR" --videotype "$VIDEO_TYPE" --shuffle_num "$SHUFFLE_NUMBER" --gpu "$GPU_ID" --filter_labels "$FILTER_LABELS" --plot_trajectories "$PLOT_TRAJECTORIES" --create_labeled_video "$CREATE_LABELED_VIDEO
 
 echo -e "\nDone at $(date)"
