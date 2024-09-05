@@ -1,4 +1,4 @@
-### Run analysis
+### Run DLC analysis
 
 On the cluster:
 
@@ -7,11 +7,25 @@ ssh om7
 cd /om/user/$USER/code/dlc
 sbatch dlc_video_analysis_singularity.sh /path/to/video/files
 ```
-(you can also directly connect and go to the script directory, e.g., `ssh -t om7 "cd /om/user/prevosto/code/whisker_pipeline/scripts/dlc && bash"`).  
+(you can also directly connect and go to the script directory, e.g., `ssh -t om7 "cd /om/user/prevosto/code/whisker_pipeline/scripts/dlc && bash"`).
 
-To edit files, edit locally and upload via WinSCP, or ssh to openmind, request compute node (e.g., `ssh -t om7 "srun -n 1 -t 01:00:00 --pty bash"`), then update the SSH `config` file and open a remote window in VSCode. 
+In addition to processing videos, there are three options: 
+* Filter the labels
+* Plots the trajectories
+* Create labeled videos
 
-### Run the GUI
+To run the script with these options, use a command following this pattern:
+```bash
+SOURCE_PATH=/nese/mit/group/fan_wang/all_staff/Vincent/Ephys/whisker_asym/sc005/sc005_1213/
+CONFIG_FILE=/om/user/$USER/data/whisker_asym/face_poke-Vincent-2024-02-29/config.yaml
+sbatch dlc_video_analysis_singularity.sh $SOURCE_PATH $CONFIG_FILE True True True
+```
+
+Filtering and plotting are true by default, while creating labeled videos is false.
+
+To edit script files, either edit them locally and upload via WinSCP, or ssh to Openmind, request compute node (e.g., `ssh -t om7 "salloc -n 1 -t 01:00:00"`), then update the `HostName nodeXXX` in the SSH `config` file and open a remote window in VSCode with `Remote Explorer > Remotes (Tunnels/SSH)`. 
+
+### Run the DLC GUI
 
 On a local machine  
 - with an environment: 

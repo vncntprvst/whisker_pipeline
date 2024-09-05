@@ -144,9 +144,25 @@ singularity exec -B "$data_path:/data" -B "$config_path:/config" "$image_path" /
 
 **8**
 Testing added options on small video first
+```bash
 SOURCE_PATH=/nese/mit/group/fan_wang/all_staff/Vincent/Ephys/whisker_asym/sc005/sc005_1213/
 CONFIG_FILE=/weka/scratch/weka/wanglab/prevosto/data/whisker_asym/face_poke-Vincent-2024-02-29/config.yaml
 sbatch dlc_video_analysis_singularity.sh $SOURCE_PATH $CONFIG_FILE True True True
+```
+```bash
+Job ID: 38161352
+Cluster: openmind7
+User/Group: prevosto/wanglab
+State: COMPLETED (exit code 0)
+Nodes: 1
+Cores per node: 4
+CPU Utilized: 00:50:40
+CPU Efficiency: 40.17% of 02:06:08 core-walltime
+Job Wall-clock time: 00:31:32
+Memory Utilized: 19.12 GB
+Memory Efficiency: 238.95% of 8.00 GB
+```
+
 
 ### Whisker Tracking
 First testing with environment - then with singularity.

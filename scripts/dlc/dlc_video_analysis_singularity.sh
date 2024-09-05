@@ -1,5 +1,5 @@
 #!/bin/sh
-#SBATCH -t 03:30:00
+#SBATCH -t 04:00:00
 #SBATCH -n 4    
 #SBATCH --mem=8G
 #SBATCH --gres=gpu:a100:1                       # For any other GPU, ask --gres=gpu:1, and next line SBATCH --constraint=24GB  (or 32GB)
@@ -28,17 +28,24 @@ else
 fi
 echo -e '\n'
 
-# Variables and arguments
+# Load global settings
 source ../utils/set_globals.sh $USER
+
 SRC_VIDEO_DIR=$1
-CONFIG_FILE=${2:-$OM_BASE_DIR/$PROJECT/$DLC_NETWORK/config.yaml}
-FILTER_LABELS=${3:-"True"}
-if [ "$FILTER_LABELS" = "True" ]; then
+CONFIG_FILE=${2:-"$OM_BASE_DIR/$PROJECT/$DLC_NETWORK/config.yaml"}
+
+# Assign optional flags to an associative array
+declare -A flags
+flags["--filter_labels"]=${3:-"True"}
+flags["--plot_trajectories"]=${4:-"True"}
+flags["--create_labeled_video"]=${5:-"False"}
+
+# If filter_labels is true, handle HDF5_USE_FILE_LOCKING
+if [ "${flags["--filter_labels"]}" = "True" ]; then
     export HDF5_USE_FILE_LOCKING=FALSE
 fi
-PLOT_TRAJECTORIES=${4:-"True"}
-CREATE_LABELED_VIDEO=${5:-"False"}  
 
+# Set the Singularity image path
 SINGULARITY_IMAGE="$IMAGE_REPO/deeplabcut_latest-core.sif"
 echo "Using singularity image: $SINGULARITY_IMAGE"
 
@@ -102,7 +109,8 @@ else
 fi
 
 # Test GPU availability with error handling within the Singularity container
-GPU_CHECK=$(singularity exec --nv -B "$DEST_VIDEO_DIR":"$DEST_VIDEO_DIR","$CONFIG_FILE":"$CONFIG_FILE" "$SINGULARITY_IMAGE" /usr/bin/python3 -c "import tensorflow as tf; print(tf.config.list_physical_devices('GPU'))" 2>&1)
+echo "Checking for GPU availability..."
+GPU_CHECK=$(singularity exec --nv "$SINGULARITY_IMAGE" /usr/bin/python3 -c "import tensorflow as tf; print(tf.config.list_physical_devices('GPU'))" 2>&1)
 
 if [[ "$GPU_CHECK" == *"[]"* ]]; then
     echo "Error: No GPU detected. Exiting."
@@ -136,7 +144,31 @@ echo "TRUE_CONFIG_DIR: $TRUE_CONFIG_DIR"
 SCRIPT_DIR=${SLURM_SUBMIT_DIR:-$(dirname "$0")}
 echo "SCRIPT_DIR: $SCRIPT_DIR"
 
-# Run the DeepLabCut analysis within the Singularity container
-singularity exec --nv -B "$TRUE_DEST_VIDEO_DIR":"$TRUE_DEST_VIDEO_DIR","$TRUE_SRC_VIDEO_DIR":"$TRUE_SRC_VIDEO_DIR","$TRUE_CONFIG_DIR":"$TRUE_CONFIG_DIR","$SCRIPT_DIR":"$SCRIPT_DIR" "$SINGULARITY_IMAGE" /usr/bin/python3 "$SCRIPT_DIR/run_dlc_analysis.py" --config "$TRUE_CONFIG_DIR/config.yaml" --videos "$TRUE_DEST_VIDEO_DIR" --dest_dir "$TRUE_SRC_VIDEO_DIR" --videotype "$VIDEO_TYPE" --shuffle_num "$SHUFFLE_NUMBER" --gpu "$GPU_ID" --filter_labels "$FILTER_LABELS" --plot_trajectories "$PLOT_TRAJECTORIES" --create_labeled_video "$CREATE_LABELED_VIDEO
+# Prepare the flags for the DLC command
+OPT_DLC_FLAGS=""
+for flag in "${!flags[@]}"; do
+    if [ "${flags[$flag]}" = "True" ]; then
+        OPT_DLC_FLAGS="$OPT_DLC_FLAGS $flag"
+    fi
+done
+
+### Run the DeepLabCut analysis ###
+
+# Construct the argument string
+PRE_ARGS="--nv \
+    -B $TRUE_DEST_VIDEO_DIR:$TRUE_DEST_VIDEO_DIR,$TRUE_SRC_VIDEO_DIR:$TRUE_SRC_VIDEO_DIR,$TRUE_CONFIG_DIR:$TRUE_CONFIG_DIR,$SCRIPT_DIR:$SCRIPT_DIR"
+    
+POST_ARGS="/usr/bin/python3 $SCRIPT_DIR/run_dlc_analysis.py \
+    --config $TRUE_CONFIG_DIR/config.yaml --videos $TRUE_DEST_VIDEO_DIR \
+    --dest_dir $TRUE_SRC_VIDEO_DIR \
+    --videotype $VIDEO_TYPE --shuffle_num $SHUFFLE_NUMBER \
+    --gpu $GPU_ID $OPT_DLC_FLAGS"
+
+# Print the argument
+echo "\nRunning DeepLabCut analysis with the following command:"
+echo "singularity exec $PRE_ARGS $SINGULARITY_IMAGE $POST_ARGS\n"
+
+# Make the call
+singularity exec $PRE_ARGS $SINGULARITY_IMAGE $POST_ARGS
 
 echo -e "\nDone at $(date)"

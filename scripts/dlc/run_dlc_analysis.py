@@ -23,6 +23,7 @@ import sys
 import argparse
 import deeplabcut
 
+# TODO: Removed passing kwargs to deeplabcut functions for now, as they are all lumped together in the 'kwargs' dictionary. Would need to check which kwargs are valid for each function and pass them accordingly.
 
 def analyze_videos(config_file, video_files, **kwargs):
     """
@@ -46,7 +47,7 @@ def analyze_videos(config_file, video_files, **kwargs):
                               shuffle=shuffle_num, 
                               save_as_csv=csv_export, 
                               destfolder=dest_dir, 
-                              **kwargs)
+                              )
     
 def filter_labels(config_file, video_files, **kwargs):
     """
@@ -70,7 +71,7 @@ def filter_labels(config_file, video_files, **kwargs):
                                  shuffle=shuffle_num, 
                                  save_as_csv=csv_export, 
                                  destfolder=dest_dir, 
-                                 **kwargs)
+                                 )
     
 def plot_trajectories(config_file, video_files, **kwargs):
     """
@@ -93,8 +94,8 @@ def plot_trajectories(config_file, video_files, **kwargs):
                                  videotype=video_type, 
                                  shuffle=shuffle_num, 
                                  filtered=filtered_labels, 
-                                 destfolder=dest_dir, 
-                                 **kwargs)
+                                 destfolder=dest_dir,
+                                 )
 
 def create_labeled_video(config_file, video_files, **kwargs):
     """
@@ -118,7 +119,7 @@ def create_labeled_video(config_file, video_files, **kwargs):
                                     shuffle=shuffle_num, 
                                     filtered=filtered_labels, 
                                     destfolder=dest_dir, 
-                                    **kwargs)
+                                    )
 
 def main(config_file, video_dir, dest_dir=None, video_type='mp4', shuffle_num=1, gpu_id='0', **kwargs):
     """
@@ -160,7 +161,7 @@ def main(config_file, video_dir, dest_dir=None, video_type='mp4', shuffle_num=1,
     
     # Analyze the videos and pass additional kwargs
     print(f"Analyzing videos in {video_dir} and saving output to {dest_dir}...")
-    analyze_videos(config_file, video_files, videotype=video_type, shuffle=shuffle_num, destfolder=dest_dir, **kwargs)
+    analyze_videos(config_file, video_files, videotype=video_type, shuffle=shuffle_num, destfolder=dest_dir)
     
     # If the 'filter' flag is set, filter the labels
     if kwargs.get('filter', False):
@@ -186,6 +187,7 @@ if __name__ == "__main__":
     parser.add_argument('--videotype', default='mp4', help="Type of video files to analyze (default: mp4).")
     parser.add_argument('--shuffle_num', default='1', help="Shuffle number for analysis")
     parser.add_argument('--gpu', default='0', help="GPU ID to use (default: 0).")
+    parser.add_argument('--save_as_csv', default=True, help="Save the output as CSV files.")
     parser.add_argument('--filter_labels', action='store_true', help="Filter the labels after analysis.")
     parser.add_argument('--plot_trajectories', action='store_true', help="Plot the trajectories after analysis.")
     parser.add_argument('--create_labeled_video', action='store_true', help="Create labeled videos after analysis.")
@@ -203,4 +205,6 @@ if __name__ == "__main__":
         print(f"Error creating destination directory {args.dest_dir}: {e}")
         sys.exit(1)
     
-    main(config_file=args.config, video_dir=args.videos, dest_dir=args.dest_dir, video_type=args.videotype, shuffle_num=args.shuffle_num, gpu_id=args.gpu, filter=args.filter_labels, plot=args.plot_trajectories, labeled_video=args.create_labeled_video)
+    main(config_file=args.config, video_dir=args.videos, dest_dir=args.dest_dir,
+         video_type=args.videotype, shuffle_num=args.shuffle_num, gpu_id=args.gpu, 
+         save_as_csv=args.save_as_csv, filter=args.filter_labels, plot=args.plot_trajectories, labeled_video=args.create_labeled_video)
