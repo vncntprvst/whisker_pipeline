@@ -7,7 +7,7 @@ ssh om7
 cd /om/user/$USER/code/dlc
 sbatch dlc_video_analysis_singularity.sh /path/to/video/files
 ```
-(you can also directly connect and go to the script directory, e.g., `ssh -t om7 "cd /om/user/prevosto/code/whisker_pipeline/scripts/dlc && bash"`).
+(you can also directly connect and go to the script directory, e.g., `ssh -t om7 "cd /om/user/<user>/code/whisker_pipeline/scripts/dlc && bash"`).
 
 In addition to processing videos, there are three options: 
 * Filter the labels
