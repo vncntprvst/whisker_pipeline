@@ -1,12 +1,12 @@
 #!/bin/sh
 #SBATCH -t 04:00:00
 #SBATCH -n 4    
-#SBATCH --mem=8G
+#SBATCH --mem=12G
 #SBATCH --gres=gpu:a100:1                       # For any other GPU, ask --gres=gpu:1, and next line SBATCH --constraint=24GB  (or 32GB)
 #SBATCH --job-name=dlc_video_analysis    
 #SBATCH -o ./slurm_logs/dlc_video_analysis_sing-%j.out
 #SBATCH --mail-type=ALL
-#SBATCH --mail-user=prevosto@mit.edu
+#SBATCH --mail-user=$(echo $USER@mit.edu)
 
 # Use the following command to submit the job:
 # sbatch dlc_video_analysis_singularity.sh [src_video_dir] [config_file] [filter_labels] [plot_trajectories] [create_labeled_video]

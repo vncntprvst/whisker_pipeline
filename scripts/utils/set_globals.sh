@@ -45,6 +45,21 @@ if [ "$LOGIN_NAME" == "prevosto" ]; then
     export STORE_BASE_DIR=$NESE_BASE_DIR
     export PROC_BASE_DIR=$OM_SCRATCH_DIR #$OM_BASE_DIR
     export PIPELINE_CODE_DIR=$OM_USER_DIR_ALIAS/$USER/code/whisker_pipeline
+    
+elif [ "$LOGIN_NAME" == "mg2k" ]; then
+    # User variables
+    export USERNAME="Mel"
+    # Base directories
+    export OM_BASE_DIR=$OM_USER_DIR_ALIAS/$USER/data
+    export OM2_BASE_DIR=$OM2_USER_DIR_ALIAS/$USER/data
+    export NESE_BASE_DIR=$NESE_LAB_DIR/$USERNAME/Ephys
+    export OM_SCRATCH_DIR=$OM_SCRATCH_TMP/$USERNAME
+    export OM2_SCRATCH_DIR=$OM2_SCRATCH_TMP/$USERNAME
+    export SCRATCH_ROOT="$(dirname "$OM_SCRATCH_DIR")"
+    # Assign directories
+    export STORE_BASE_DIR=$NESE_BASE_DIR
+    export PROC_BASE_DIR=$OM_SCRATCH_DIR #$OM_BASE_DIR
+    export PIPELINE_CODE_DIR=$OM_USER_DIR_ALIAS/$USER/code/whisker_pipeline
 
 elif [ "$LOGIN_NAME" == "wanglab" ]; then
     # User variables
