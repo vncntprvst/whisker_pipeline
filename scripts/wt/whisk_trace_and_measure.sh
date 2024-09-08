@@ -6,8 +6,8 @@
 #SBATCH --mem=75G               # Memory per node
 #SBATCH --job-name=wt_measure   
 #SBATCH -o ./slurm_logs/wt_measure-%j.out
-#SBATCH --mail-user=prevosto@mit.edu
 #SBATCH --mail-type=ALL
+#SBATCH --mail-user=$(echo $USER@mit.edu)
 
 # 120 Cores: ~43 GB
 # 128 Cores: ~46 GB
