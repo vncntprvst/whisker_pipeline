@@ -11,11 +11,11 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "args": [
-                "/home/wanglab/data/whisker_asym/test", "-k"
+                // "/home/wanglab/data/whisker_asym/test2", "-k"
                 // "/home/wanglab/data/whisker_asym/sc012/test/WT", "-b", "sc012_0119_001", "-ff", "zarr", "-od", "/home/wanglab/data/whisker_asym/sc012/test"
                 // "/home/wanglab/data/whisker_asym/sc012/test/WT", "-b", "sc012_0119_001", "-ff", "feather", "-od", "/home/wanglab/data/whisker_asym/sc012/test", "-ft", "midpoint"
                 // "/home/wanglab/data/whisker_asym/wa001/test/WA001_080224_01_TopCam_10s.mp4","-b","WA001_080224_01","-s","-p","40" 
-                // "/home/wanglab/data/whisker_asym/sc012/test/sc012_0119_001_20230119_10sWhisking.mp4","-b","sc012_0119_001","-s","-p","40" 
+                "/home/wanglab/data/whisker_asym/test2/sc012_0119_001_20230119_10sWhisking.mp4","-b","sc012_0119_001","-s","-p","40" 
                 // "/mnt/md0/analysis/whisker_asym/Analysis/test/sc016_0630_001_30sWhisking.mp4","-b","sc016_0630_001","-s","-p","40" 
                 // "E:\\whisker_asym\\test\\sc016_0630_001_30sWhisking.mp4","-b","sc016_0630_001","-s","-p","40" 
                 // "E:\test","sc016_0630_001_10sWhisking.mp4","hdf5"

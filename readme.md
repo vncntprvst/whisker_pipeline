@@ -1,3 +1,12 @@
+### Whisker tracking and analysis
+With Python: 
+```bash
+python Python/whisker_tracking.py /my_data/video.mp4 -s -p 40
+```
+Use -s for bilateral tracking, to split the video in halves (whch are subsequently tracked and combined).
+Use -p to specify the number of processes to use. 
+Use -b to specify the base name for the output files. 
+
 ### Installation 
 * Clone or download this repository.  
 * If using **Python**:  

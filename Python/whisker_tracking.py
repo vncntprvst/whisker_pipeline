@@ -142,7 +142,7 @@ def main():
         # Combine left and right whisker data
         log_file.write("Combining whisker tracking files...\n")
         start_time_combine = time.time()
-        cs.combine_sides(output_filenames, whiskerpad_file)
+        cs.combine_to_file(output_filenames, whiskerpad_file)
         log_file.write(f'Combining whiskers took {time.time() - start_time_combine} seconds.\n')
 
         # Plot overlay

@@ -8,7 +8,7 @@ python combine_sides.py /home/wanglab/data/whisker_asym/sc012/test/WT -b sc012_0
     
 import os
 import glob
-import re
+# import re
 import argparse
 import pandas as pd
 import numpy as np
@@ -16,39 +16,35 @@ import tables
 import pyarrow.parquet as pq
 import h5py
 import json
-from typing import List 
-import WhiskiWrap as ww
-import multiprocessing as mp
+import time
 import logging
+from typing import List
 
 # Set up logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-import time
-        
 # Define sides
 default_sides = ['left', 'right', 'top', 'bottom']
 
 def get_files(input_dir: str):
     """
-    Get whisker tracking files (e.g., whiskers and measurement) from input directory.
-    Find which sides are present in the whiskers files.
+    Get whisker tracking files from the input directory.
+    Return the whiskers and measurement files with identified sides.
     """
-    
     wt_formats = ['whiskers', 'hdf5', 'parquet']
-
-    # Check for files in the directory with available formats
     wt_files = []
+
+    # Search for files in the available formats
     for wt_format in wt_formats:
         wt_files = glob.glob(os.path.join(input_dir, f'*.{wt_format}'))
         if wt_files:
             break
 
     if not wt_files:
-        print("No whiskers files found in input directory")
+        logging.error("No whiskers files found in input directory")
         return [], [], []
-    
-    # Find which sides are present in the whisker tracking files
+
+    # Identify the sides from the file names
     sides = [side for side in default_sides if any(side in f for f in wt_files)]
 
     if wt_format == 'whiskers':
@@ -73,69 +69,6 @@ def get_files(input_dir: str):
     # For 'hdf5' or 'parquet', return the file list and sides
     return wt_files, sides
 
-    
-def get_chunk_start(filename: str) -> int:
-    match = re.search(r'\d{8}', os.path.basename(filename))
-    return int(match.group()) if match else 0
-    
-def inspect_queue(queue):
-    items = []
-    while True:
-        try:
-            item = queue.get_nowait()
-            items.append(item)
-        except mp.queues.Empty:
-            break
-    return items
-
-def process_whiskers_files(params, output_file, sides, chunk_size, queue):
-    """
-    Process whiskers files in parallel.
-    """
-    print(f"Processing whiskers files with params: {params}")
-    whiskers_file, measurement_file = params
-    side = [side for side in sides if side in whiskers_file][0]
-    chunk_start = get_chunk_start(whiskers_file)
-    result = ww.base.append_whiskers_to_zarr(whiskers_file, output_file, chunk_start, measurement_file, side, (chunk_size,), True)
-    print(f"Result prepared for {whiskers_file}")
-    queue.put(result)
-    print(f"Result put in queue")
-    
-def writer_process(queue, output_file, chunk_size):
-    """
-    Write data to Zarr file.
-    """    
-    logging.debug(f"Opening Zarr file: {output_file}")
-    zarr_file = ww.base.initialize_zarr(output_file, chunk_size)
-    while True:
-        logging.debug(f"Waiting for message")
-        message = queue.get()
-        logging.debug(f"Received message")
-        if message == 'DONE':
-            logging.debug(f"Closing Zarr file: {output_file}")
-            break
-        summary_data_list, pixels_x_list, pixels_x_indices_list, pixels_y_list, pixels_y_indices_list = message
-        
-        logging.debug(f"Writing data to Zarr file: {len(summary_data_list)} summary records, {len(pixels_x_list)} pixels_x, {len(pixels_y_list)} pixels_y")
-        try:
-            if summary_data_list:
-                summary_array = np.fromiter((tuple(d.values()) for d in summary_data_list), dtype=zarr_file['summary'].dtype)
-                zarr_file['summary'].append(summary_array)
-            if pixels_x_list:
-                zarr_file['pixels_x'].append(pixels_x_list)
-                zarr_file['pixels_x_indices'].append(pixels_x_indices_list)
-            if pixels_y_list:
-                zarr_file['pixels_y'].append(pixels_y_list)
-                zarr_file['pixels_y_indices'].append(pixels_y_indices_list)
-                
-            # Log current state of the Zarr file
-            logging.debug(f"Zarr file summary dataset length: {len(zarr_file['summary'])}")
-            logging.debug(f"Zarr file pixels_x dataset length: {len(zarr_file['pixels_x'])}")
-            logging.debug(f"Zarr file pixels_y dataset length: {len(zarr_file['pixels_y'])}")
-        except Exception as e:
-            logging.error(f"Error writing to Zarr file: {e}")
-            raise e
-               
 def combine_measurement_files(whiskers_files: List[str], measurement_files: List[str], sides: List[str], output_file: str):       
     """ 
     Combine whiskers and measurement files and save to output file.
@@ -256,92 +189,42 @@ def combine_hdf5(h5_files: List[str], output_file: str = 'combined.csv') -> None
         # Save combined table to csv file
         combined_table.to_csv(output_file, index=False)
         
-def sort_table(combined_table: pd.DataFrame):
-    """ 
-    Sort combined table by frame id and whisker id.
-    """
-    # Sort combined table by frame id and whisker id
-    combined_table = combined_table.sort_values(by=['fid', 'wid'])
-
-    # reorder columns 
-    combined_table = combined_table[['fid', 'wid', 'label', 'face_x', 'face_y',
-                                    'length', 'pixel_length', 'score', 'angle',
-                                    'curvature', 'follicle_x', 'follicle_y',
-                                    'tip_x', 'tip_y', 'chunk_start']]
-    
-    return combined_table
-    
-# def combine_sides(summary):
-#     """ 
-#     Combine left and right sides of the face.
-#     """
-#     # Concatenate all sides
-#     combined_summary = pd.concat(summary.values(), ignore_index=True)
-#     # Sort combined table by frame id and whisker id
-#     combined_summary = combined_summary.sort_values(by=['fid', 'wid'])
-
-#     return combined_summary
-
 def read_parquet_file(file):
-    """ Helper function to read a Parquet file into a Pandas DataFrame """
+    """Helper function to read a Parquet file into a Pandas DataFrame"""
     return pq.read_table(file).to_pandas()
 
 def read_hdf5_file(file):
-    """ Helper function to read an HDF5 file into a Pandas DataFrame """
+    """Helper function to read an HDF5 file into a Pandas DataFrame"""
     with h5py.File(file, 'r') as f:
-        # Assuming the HDF5 file contains a single dataset named 'data'
         data = f['data'][:]
         df = pd.DataFrame(data)
     return df
 
 def adjust_coordinates(summary, whiskerpad_params):
-    """
-    Adjust the _x and _y fields in the summary DataFrame 
-    by adding the image coordinates from the whiskerpad_params.
-    """
+    """Adjust x and y coordinates using the whiskerpad params."""
     for side, df in summary.items():
-        # Find the corresponding whiskerpad information for the side
         whiskerpad_info = next((pad for pad in whiskerpad_params['whiskerpads'] if pad['FaceSide'].lower() == side), None)
-        
         if whiskerpad_info:
             image_coord = whiskerpad_info['ImageCoordinates']
-            
-            # Apply the image coordinate offsets to _x and _y fields
+            # Adjust coordinates for x and y fields
             df['pixels_x'] = df['pixels_x'].apply(lambda x: np.array(x) + image_coord[0])
             df['pixels_y'] = df['pixels_y'].apply(lambda y: np.array(y) + image_coord[1])
-            df['face_x'] += image_coord[0]
-            df['face_y'] += image_coord[1]
-            df['follicle_x'] += image_coord[0]
-            df['follicle_y'] += image_coord[1]
-            df['tip_x'] += image_coord[0]
-            df['tip_y'] += image_coord[1]            
-
+            df[['face_x', 'follicle_x', 'tip_x']] += image_coord[0]
+            df[['face_y', 'follicle_y', 'tip_y']] += image_coord[1]
     return summary
 
 def combine_sides(wt_files, whiskerpad_file):
-    """ 
-    Combine left and right whisker tracking data from Parquet or HDF5 files 
-    by adjusting whisker IDs.
-    
-    Parameters:
-    - wt_files: A list of whisker tracking files (left and right).
-    
-    Returns:
-    - combined_summary: A DataFrame with adjusted whisker IDs and combined data.
-    """
+    """Combine left and right whisker tracking data by adjusting whisker IDs."""
     summary = {}
     whiskerpad_params = None
     
-    # If whiskerpad file is found, load it
-    if whiskerpad_file is not None:
-        # Use json.load to load the whiskerpad file. There should be only one whiskerpad file. In it, there are two whiskerpads, one for each side.
+    if whiskerpad_file:
         with open(whiskerpad_file, 'r') as f:
-            whiskerpad_params = json.load(f)           
-    
-    # Get sides from whisker tracking file names
+            whiskerpad_params = json.load(f)
+
+    # Get sides from the whisker tracking files
     sides = [side for file in wt_files for side in default_sides if side in file]
     
-    # Load each file and store in a dictionary based on format (parquet or hdf5)    
     for file, side in zip(wt_files, sides):
         if file.endswith('.parquet'):
             summary[side] = read_parquet_file(file)
@@ -349,15 +232,12 @@ def combine_sides(wt_files, whiskerpad_file):
             summary[side] = read_hdf5_file(file)
         else:
             raise ValueError(f"Unsupported file format: {file}")
-        
-    # Adjust coordinates based on the whiskerpad params if available
-    if whiskerpad_params is not None:
+    
+    if whiskerpad_params:
         summary = adjust_coordinates(summary, whiskerpad_params)
 
-    # Get the maximum whisker ID from the first side
+    # Adjust the whisker IDs for the second side
     max_wid_first_side = summary[sides[0]]['wid'].max()
-    
-    # Adjust the whisker IDs for the right side
     if len(sides) > 1:
         summary[sides[1]]['wid'] += max_wid_first_side + 1
 
@@ -369,106 +249,69 @@ def combine_sides(wt_files, whiskerpad_file):
 
     return combined_summary
 
-def combine_to_file(wt_files, whiskerpad_file, file_format, output_file, keep_wt_files=False):
-    """
-    Combine whisker tracking files and save to output file.
-    """
+def combine_to_file(wt_files, whiskerpad_file, output_file=None, keep_wt_files=False):
+    """Combine whisker tracking files and save to the specified format."""
+            
+    # If output_file is None, use common prefix of the whisker tracking files, and file format of the whisker tracking files
+    if output_file is None:
+        base_name = os.path.commonprefix([os.path.basename(f) for f in wt_files]).rstrip('_')     
+        output_file = os.path.join(os.path.dirname(wt_files[0]), base_name + '.' + wt_files[0].split('.')[-1])
+        
+    file_format = output_file.split('.')[-1]
+        
+    # Combine whisker tracking files
+    start_time = time.time()
+    combined_summary = combine_sides(wt_files, whiskerpad_file)
+    
+    # Save the combined summary to the output file
+    if file_format == 'csv':
+        combined_summary.to_csv(output_file, index=False)
+    elif file_format == 'parquet':
+        combined_summary.to_parquet(output_file, index=False)
+    elif file_format == 'hdf5':
+        with tables.open_file(output_file, mode='w') as f:
+            f.create_table('/', 'summary', obj=combined_summary.to_records(index=False))
+    elif file_format == 'zarr':
+        combined_summary.to_zarr(output_file)
 
-    # Time the process
-    start = time.time() 
-        
-    if len(files_result) == 2:
-        # If chunks have been stitched, combine sides and save to output file
-        # if wt_files[0].endswith('.hdf5'):
-        #     # if files have been updated, only combine updated files.
-        #     if any('updated' in f for f in wt_files):
-        #         wt_files = [f for f in wt_files if 'updated' in f]
-        #     combine_hdf5(wt_files, output_file)
-        # elif wt_files[0].endswith('.parquet'):
-        
-        combined_summary = combine_sides(wt_files, whiskerpad_file)
-        
-        # Then save to file in the specified format
-        if file_format == 'csv':
-            combined_summary.to_csv(output_file, index=False)
-        elif file_format == 'parquet':
-            combined_summary.to_parquet(output_file, index=False)
-        elif file_format == 'hdf5':
-            # Save to hdf5 file
-            with tables.open_file(output_file, mode='w') as f:
-                f.create_table('/', 'summary', obj=combined_summary.to_records(index=False))
-        elif file_format == 'zarr':
-            # Save to zarr file
-            combined_summary.to_zarr(output_file)            
-                       
-    else:
-        # If whiskers and measurement files are present (meaning chunks haven't been stitched), combine those files
-        combine_measurement_files(wt_files, measurement_files, sides, output_file)
-        
+    # Remove whisker tracking files if keep_wt_files is False
     if not keep_wt_files:
-        # Remove whisker tracking files after combining them
-        if len(files_result) == 2:
-            for f in wt_files:
-                os.remove(f)
-        else:
-            # remove the entire directory
-            os.rmdir(input_dir)    
-                
-    print(f"Time taken: {time.time() - start}")
+        for f in wt_files:
+            os.remove(f)
 
-if __name__ == "__main__":  # : -> None
-    # Define argument parser
-    parser = argparse.ArgumentParser(description="Combine whiskers files and measurement files into a single HDF5 file.")
+    logging.info(f"File saved to {output_file}")
+    logging.info(f"Time taken: {time.time() - start_time} seconds")
+
+def main():
+    """Main function to parse arguments and combine whisker tracking files."""
+    parser = argparse.ArgumentParser(description="Combine whiskers files and measurement files into a single file.")
     parser.add_argument("input_dir", help="Path to the directory containing the whiskers and measurement files.")
-    parser.add_argument("-b", "--base", help='Base name for output files', type=str)
-    parser.add_argument("-f", "--format", help="output format, among 'csv', 'parquet', 'hdf5', 'zarr'. Default is the same format as the whiskers files.")
-    parser.add_argument("-od", "--output_dir", help="Path to the directory to save the output file.")
-    parser.add_argument("-k", "--keep", help="Keep the whisker tracking files after combining them.", action="store_true")
+    parser.add_argument("-b", "--base", help="Base name for output files", type=str)
+    parser.add_argument("-f", "--format", help="Output format: 'csv', 'parquet', 'hdf5', 'zarr'.")
+    parser.add_argument("-od", "--output_dir", help="Path to save the output file.")
+    parser.add_argument("-k", "--keep", help="Keep the whisker tracking files after combining.", action="store_true")
     
     args = parser.parse_args()
-    
-    # Get input and output directories, and file format 
+
     input_dir = args.input_dir
-            
-    if args.output_dir is None:
-        output_dir = input_dir 
-    else:
-        output_dir = args.output_dir
-        
-    # Get whisker tracking files
-    files_result = get_files(input_dir)
-    if len(files_result) == 3:
-        # Got whiskers and measurement files from the whisker tracking directory
-        wt_files, sides, measurement_files = files_result
-    elif len(files_result) == 2:
-        # Got whisker tracking files from the main directory
-        wt_files, sides = files_result
-    else:
-        raise ValueError("Unexpected number of return values from get_files")
+    output_dir = args.output_dir if args.output_dir else input_dir
     
-    if args.base is None:
-        # Get the common file name part from the whiskers files
-        base_name = os.path.commonprefix([os.path.basename(f) for f in wt_files])
-        # Remove any trailing underscores
-        base_name = base_name.rstrip('_')
-    else:
-        base_name = args.base 
-        
-    # Look for the whiskerpad file in the input's parent directory and its subdirectories
+    wt_files, _ = get_files(input_dir)
+    if not wt_files:
+        raise ValueError("No valid whisker tracking files found.")
+    
+    base_name = args.base if args.base else os.path.commonprefix([os.path.basename(f) for f in wt_files]).rstrip('_')
     whiskerpad_file = glob.glob(os.path.join(input_dir, f"whiskerpad_{base_name}.json")) + \
-                    glob.glob(os.path.join(os.path.dirname(input_dir), f"whiskerpad_{base_name}.json"))
+                      glob.glob(os.path.join(os.path.dirname(input_dir), f"whiskerpad_{base_name}.json"))
     whiskerpad_file = whiskerpad_file[0] if whiskerpad_file else None
-        
-    if args.format is None:
-        # Use the same format as the whiskers files
-        file_format = wt_files[0].split('.')[-1]
     
-    output_file = os.path.join(output_dir, f"{base_name}.{file_format}")
+    if not args.format:
+        args.format = wt_files[0].split('.')[-1]
 
-    print(f"Output file: {output_file}")
-    
-    combine_to_file(wt_files, whiskerpad_file, file_format, output_file, args.keep)
-    
-    
+    output_file = os.path.join(output_dir, f"{base_name}.{args.format}")
+    logging.info(f"Output file: {output_file}")
 
-            
+    combine_to_file(wt_files, whiskerpad_file, output_file, args.keep)
+
+if __name__ == "__main__":
+    main()
