@@ -67,7 +67,7 @@ def save_frame_with_overlay(frame, data_dir, base_name, fid_num):
     plt.savefig(f'{data_dir}/plots/{base_name}_WhiskerOverlay_Frame_{fid_num}.png')
     plt.close()
 
-def main(video_file, base_name, fid_num=0):
+def plot_overlay(video_file, base_name, fid_num=0):
     """Main function to overlay whisker tracking on video."""
     data_dir = os.path.dirname(video_file)
 
@@ -105,4 +105,4 @@ if __name__ == "__main__":
     
     # call the main function with the video file path
     print(f"Overlaying whisker tracking on video: {args.video_file}")
-    main(args.video_file, args.base_name, args.fid_num)
+    plot_overlay(args.video_file, args.base_name, args.fid_num)

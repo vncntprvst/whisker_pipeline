@@ -10,6 +10,9 @@ import time
 import WhiskiWrap as ww
 from WhiskiWrap import load_whisker_data as lwd
 import whiskerpad as wp
+import combine_sides as cs
+import plot_overlay as po
+
 # Check that whisk binaries are executables and update permissions if necessary
 # from wwutils.whisk_permissions import update_permissions
 # update_permissions()
@@ -71,6 +74,8 @@ def trace_measure(input_file, base_name, output_dir, nproc, splitUp):
         classify_args['limit'] = size_limit
     if follicle is not None:
         classify_args['follicle'] = str(follicle)
+    
+    output_filenames = []
     
     for side in side_types:
         print(f'Running whisker tracking for {side} face side video')
@@ -138,8 +143,8 @@ def trace_measure(input_file, base_name, output_dir, nproc, splitUp):
         # print(summary.head())
 
         # fi=tables.open_file(output_filename)
-    
-
+        
+        output_filenames.append(output_filename)   
 
     # Overall time elapsed
     time_elapsed = time.time() - start_time
@@ -148,6 +153,8 @@ def trace_measure(input_file, base_name, output_dir, nproc, splitUp):
     # Close the log file
     sys.stdout.close()
     sys.stdout = sys.__stdout__
+    
+    return output_filenames, whiskerpad_file
 
 def main():
     # Parse command-line arguments
@@ -183,7 +190,13 @@ def main():
     nproc = args.nproc
 
     # Call the main function to trace and measure whiskers
-    trace_measure(input_file, base_name, output_dir, nproc, splitUp)
+    output_filenames, whiskerpad_file = trace_measure(input_file, base_name, output_dir, nproc, splitUp)
+    
+    # Combine left and right whisker data
+    cs.combine_sides(output_filenames, whiskerpad_file)
+    
+    # Plot overlay
+    po.plot_overlay(input_file, base_name)
 
 if __name__ == '__main__':
     main()

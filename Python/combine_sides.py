@@ -316,14 +316,6 @@ def adjust_coordinates(summary, whiskerpad_params):
             df['tip_x'] += image_coord[0]
             df['tip_y'] += image_coord[1]            
 
-    # first_frame_df = df[df['fid'] == 0]
-    # longest_whiskers = first_frame_df.nlargest(3, 'pixel_length')
-    # for index, whisker_data in longest_whiskers.iterrows():
-    #     print(f"Whisker ID: {whisker_data['wid']}")
-    #     print(f"Face X: {whisker_data['face_x']}, Face Y: {whisker_data['face_y']}")
-    #     print(f"Foll X: {whisker_data['follicle_x']}, Foll Y: {whisker_data['follicle_y']}")
-    #     print(f"Tip X: {whisker_data['tip_x']}, Tip Y: {whisker_data['tip_y']}")
-
     return summary
 
 def combine_sides(wt_files, whiskerpad_file):
