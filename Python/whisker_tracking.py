@@ -1,8 +1,6 @@
-# This script creates and/or loads whiskerpad parameters, and calls WhiskiWrap to trace and measure whiskers.  
-# Unlike cut_trace_measure.py, this script does not crop the video.
-
 import argparse
-import os, sys
+import os
+import sys
 import json
 import numpy as np
 import time
@@ -13,34 +11,22 @@ import whiskerpad as wp
 import combine_sides as cs
 import plot_overlay as po
 
-# Check that whisk binaries are executables and update permissions if necessary
-# from wwutils.whisk_permissions import update_permissions
-# update_permissions()
 
-def trace_measure(input_file, base_name, output_dir, nproc, splitUp):
-        
+def trace_measure(input_file, base_name, output_dir, nproc, splitUp, log_file):
+    """Trace and measure whiskers."""
     # if output directory doesn't exist, create it
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
     input_dir = os.path.dirname(input_file)
 
-    # Write all print statements to a log file
-    log_file = open(os.path.join(input_dir, f'trace_measure_{base_name}_log.txt'), 'w')
-    sys.stdout = log_file
-
-    # Time the script
-    start_time = time.time()
-    print('Start time:', time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_time)))
-
     # Load whiskerpad json file
     whiskerpad_file = os.path.join(input_dir, f'whiskerpad_{base_name}.json')
-    # whiskerpad_file = os.path.join(input_dir, f'whiskerpad_{os.path.basename(input_file).split(".")[0]}.json')
     
     if not os.path.exists(whiskerpad_file):
-    # If whiskerpad file does not exist, create it
-        print('Creating whiskerpad parameters file.')
-        whiskerpad=wp.Params(input_file, splitUp, base_name)
+        # If whiskerpad file does not exist, create it
+        log_file.write('Creating whiskerpad parameters file.\n')
+        whiskerpad = wp.Params(input_file, splitUp, base_name)
         # Get whiskerpad parameters
         whiskerpadParams, splitUp = wp.WhiskerPad.get_whiskerpad_params(whiskerpad)
         # Save whisking parameters to json file
@@ -50,7 +36,7 @@ def trace_measure(input_file, base_name, output_dir, nproc, splitUp):
         whiskerpad_params = json.load(f)
 
     # Check that left and right whiskerpad parameters are defined
-    if np.size(whiskerpad_params['whiskerpads'])<2:
+    if np.size(whiskerpad_params['whiskerpads']) < 2:
         raise Exception('Missing whiskerpad parameters in whiskerpad json file.')
 
     # Get side types (left / right or top / bottom)
@@ -74,89 +60,58 @@ def trace_measure(input_file, base_name, output_dir, nproc, splitUp):
         classify_args['limit'] = size_limit
     if follicle is not None:
         classify_args['follicle'] = str(follicle)
-    
-    output_filenames = []
-    
-    for side in side_types:
-        print(f'Running whisker tracking for {side} face side video')
 
-        # Time the tracking
+    output_filenames = []
+
+    for side in side_types:
+        log_file.write(f'Running whisker tracking for {side} face side video\n')
         start_time_track = time.time()
 
         output_filename = os.path.join(os.path.dirname(input_file), f'{base_name}_{side}.parquet')
         chunk_name_pattern = f'{base_name}_{side}_%08d.tif'
+        # im_side is the side of the video frame where the face is located. 
+        # It is passed to the `face` argument below to tell `measure` which side of traced objects should be considered the follicle.
+        im_side = next((whiskerpad['ImageBorderAxis'] for whiskerpad in whiskerpad_params['whiskerpads'] if whiskerpad['FaceSide'].lower() == side), None)
 
-        # get the ImageBorderAxis for the side
-        im_side=next((whiskerpad['ImageBorderAxis'] for whiskerpad in whiskerpad_params['whiskerpads'] if whiskerpad['FaceSide'].lower() == side), None)
         if im_side is None:
             raise ValueError(f'Could not find {side} whiskerpad ImageBorderAxis in whiskerpad_params')
-        
-        # Get image coordinates
+
+        # Get the image coordinates
         side_im_coord = next((whiskerpad['ImageCoordinates'] for whiskerpad in whiskerpad_params['whiskerpads'] if whiskerpad['FaceSide'].lower() == side), None)
         # reorder side_im_coord to fit -vf crop format width:height:x:y
         side_im_coord = [side_im_coord[2], side_im_coord[3], side_im_coord[0], side_im_coord[1]]
-        
-        # Print parameters
-        print(f'Number of trace processes: {nproc}')
-        print(f'Output directory: {output_dir}')
-        print(f'Chunk size: {chunk_size}')
-        print(f'Output filename: {output_filename}')
-        print(f'Chunk name pattern: {chunk_name_pattern}')
-        
-        # The `face` argument below is the side of the video frame where the face is located. 
-        # That tells `measure` which side of traced objects should be considered the follicle.
-        result_dict = ww.interleaved_split_trace_and_measure(            
+
+        log_file.write(f'Number of trace processes: {nproc}\n')
+        log_file.write(f'Output directory: {output_dir}\n')
+        log_file.write(f'Chunk size: {chunk_size}\n')
+        log_file.write(f'Output filename: {output_filename}\n')
+        log_file.write(f'Chunk name pattern: {chunk_name_pattern}\n')
+
+        result_dict = ww.interleaved_split_trace_and_measure(
             ww.FFmpegReader(input_file, crop=side_im_coord),
             output_dir,
             chunk_name_pattern=chunk_name_pattern,
             chunk_size=chunk_size,
             output_filename=output_filename,
-            n_trace_processes=nproc, 
+            n_trace_processes=nproc,
             frame_func='crop',
             face=im_side,
-            # Pass arguments for the classify call
             classify=classify_args,
             summary_only=True,
             skip_existing=True,
             convert_chunks=True,
-        )      
+        )
 
         time_track = time.time() - start_time_track
-        print(f'Tracking took {time_track} seconds.', flush=True)
+        log_file.write(f'Tracking for {side} took {time_track} seconds.\n')
 
-        # Reassess whisker IDs
-        # lwd.update_wids(output_filename)
+        output_filenames.append(output_filename)
 
-
-        ## Read hdf5 file
-        # from ww.base import read_whiskers_hdf5_summary
-        # output_filename='/data/dev/sc014_0315_001_left.hdf5'
-        # table = read_whiskers_hdf5_summary(output_filename)
-        # print(table.head())
-
-        # import pandas
-        # import tables
-
-        # with tables.open_file(output_filename) as fi:
-        #     summary = pandas.DataFrame.from_records(fi.root.summary.read())
-
-        # print(summary.head())
-
-        # fi=tables.open_file(output_filename)
-        
-        output_filenames.append(output_filename)   
-
-    # Overall time elapsed
-    time_elapsed = time.time() - start_time
-    print(f'Time for whole script: {time_elapsed} seconds', flush=True)
-
-    # Close the log file
-    sys.stdout.close()
-    sys.stdout = sys.__stdout__
-    
     return output_filenames, whiskerpad_file
 
+
 def main():
+    """Main function to trace, combine, and plot whiskers."""
     # Parse command-line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('input', help='Path to input video file')
@@ -168,35 +123,42 @@ def main():
 
     # Set input and output file paths
     input_file = args.input
-
-    if args.output_dir is None:
-    # If output directory is not provided, use the same directory as the input file + WT
-        output_dir = os.path.join(os.path.dirname(input_file), 'WT')
-    else:
-        output_dir = args.output_dir
-
-    if args.base is None:
-    # If base name is not provided, use the input file name without the extension
-        base_name = os.path.basename(input_file).split('.')[0]
-    else:
-        base_name = args.base
-
-    if args.splitUp is None:
-    # If splitUp is not provided, set it to False
-        splitUp = False
-    else:
-        splitUp = args.splitUp
-
+    output_dir = args.output_dir if args.output_dir else os.path.join(os.path.dirname(input_file), 'WT')
+    base_name = args.base if args.base else os.path.basename(input_file).split('.')[0]
+    splitUp = args.splitUp
     nproc = args.nproc
 
-    # Call the main function to trace and measure whiskers
-    output_filenames, whiskerpad_file = trace_measure(input_file, base_name, output_dir, nproc, splitUp)
-    
-    # Combine left and right whisker data
-    cs.combine_sides(output_filenames, whiskerpad_file)
-    
-    # Plot overlay
-    po.plot_overlay(input_file, base_name)
+    # Set up logging
+    log_file_path = os.path.join(os.path.dirname(input_file), f'trace_measure_{base_name}_log.txt')
+    with open(log_file_path, 'w') as log_file:
+        sys.stdout = log_file
+
+        start_time = time.time()
+        log_file.write(f'Start time: {time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(start_time))}\n')
+
+        # Trace and measure whiskers
+        output_filenames, whiskerpad_file = trace_measure(input_file, base_name, output_dir, nproc, splitUp, log_file)
+
+        # Combine left and right whisker data
+        log_file.write("Combining whisker tracking files...\n")
+        start_time_combine = time.time()
+        cs.combine_sides(output_filenames, whiskerpad_file)
+        log_file.write(f'Combining whiskers took {time.time() - start_time_combine} seconds.\n')
+
+        # Plot overlay
+        log_file.write("Creating overlay plot...\n")
+        start_time_plot = time.time()
+        po.plot_overlay(input_file, base_name)
+        log_file.write(f'Plotting overlay took {time.time() - start_time_plot} seconds.\n')
+
+        total_time = time.time() - start_time
+        log_file.write(f'Total time for the script: {total_time} seconds\n')
+
+        # Close log and restore stdout
+        sys.stdout = sys.__stdout__
+
+    print(f"Log file saved at: {log_file_path}")
+
 
 if __name__ == '__main__':
     main()

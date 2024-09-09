@@ -369,6 +369,53 @@ def combine_sides(wt_files, whiskerpad_file):
 
     return combined_summary
 
+def combine_to_file(wt_files, whiskerpad_file, file_format, output_file, keep_wt_files=False):
+    """
+    Combine whisker tracking files and save to output file.
+    """
+
+    # Time the process
+    start = time.time() 
+        
+    if len(files_result) == 2:
+        # If chunks have been stitched, combine sides and save to output file
+        # if wt_files[0].endswith('.hdf5'):
+        #     # if files have been updated, only combine updated files.
+        #     if any('updated' in f for f in wt_files):
+        #         wt_files = [f for f in wt_files if 'updated' in f]
+        #     combine_hdf5(wt_files, output_file)
+        # elif wt_files[0].endswith('.parquet'):
+        
+        combined_summary = combine_sides(wt_files, whiskerpad_file)
+        
+        # Then save to file in the specified format
+        if file_format == 'csv':
+            combined_summary.to_csv(output_file, index=False)
+        elif file_format == 'parquet':
+            combined_summary.to_parquet(output_file, index=False)
+        elif file_format == 'hdf5':
+            # Save to hdf5 file
+            with tables.open_file(output_file, mode='w') as f:
+                f.create_table('/', 'summary', obj=combined_summary.to_records(index=False))
+        elif file_format == 'zarr':
+            # Save to zarr file
+            combined_summary.to_zarr(output_file)            
+                       
+    else:
+        # If whiskers and measurement files are present (meaning chunks haven't been stitched), combine those files
+        combine_measurement_files(wt_files, measurement_files, sides, output_file)
+        
+    if not keep_wt_files:
+        # Remove whisker tracking files after combining them
+        if len(files_result) == 2:
+            for f in wt_files:
+                os.remove(f)
+        else:
+            # remove the entire directory
+            os.rmdir(input_dir)    
+                
+    print(f"Time taken: {time.time() - start}")
+
 if __name__ == "__main__":  # : -> None
     # Define argument parser
     parser = argparse.ArgumentParser(description="Combine whiskers files and measurement files into a single HDF5 file.")
@@ -420,46 +467,8 @@ if __name__ == "__main__":  # : -> None
 
     print(f"Output file: {output_file}")
     
-    # Time the process
-    start = time.time() 
-        
-    if len(files_result) == 2:
-        # If chunks have been stitched, combine sides and save to output file
-        # if wt_files[0].endswith('.hdf5'):
-        #     # if files have been updated, only combine updated files.
-        #     if any('updated' in f for f in wt_files):
-        #         wt_files = [f for f in wt_files if 'updated' in f]
-        #     combine_hdf5(wt_files, output_file)
-        # elif wt_files[0].endswith('.parquet'):
-        
-        combined_summary = combine_sides(wt_files, whiskerpad_file)
-        
-        # Then save to file in the specified format
-        if file_format == 'csv':
-            combined_summary.to_csv(output_file, index=False)
-        elif file_format == 'parquet':
-            combined_summary.to_parquet(output_file, index=False)
-        elif file_format == 'hdf5':
-            # Save to hdf5 file
-            with tables.open_file(output_file, mode='w') as f:
-                f.create_table('/', 'summary', obj=combined_summary.to_records(index=False))
-        elif file_format == 'zarr':
-            # Save to zarr file
-            combined_summary.to_zarr(output_file)            
-                       
-    else:
-        # If whiskers and measurement files are present (meaning chunks haven't been stitched), combine those files
-        combine_measurement_files(wt_files, measurement_files, sides, output_file)
-        
-    if not args.keep:
-        # Remove whisker tracking files after combining them
-        if len(files_result) == 2:
-            for f in wt_files:
-                os.remove(f)
-        else:
-            # remove the entire directory
-            os.rmdir(input_dir)    
-                
-    print(f"Time taken: {time.time() - start}")
+    combine_to_file(wt_files, whiskerpad_file, file_format, output_file, args.keep)
+    
+    
 
             
