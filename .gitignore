@@ -40,3 +40,5 @@ scripts/wt/slurm_logs/
 
 # Ignore miscellaneous files/directory
 d
+*.npy
+*.npz
