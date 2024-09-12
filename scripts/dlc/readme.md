@@ -42,6 +42,14 @@ docker run -it --rm \
     deeplabcut/deeplabcut:latest-gui \
     /usr/bin/python3 -m deeplabcut
 ```
+or to label frames (doesn't work on Windows):  
+```bash
+docker run -it --rm \
+    --gpus all \
+    -v /home/wanglab/data:/data \
+    deeplabcut/deeplabcut:latest-gui \
+    /usr/bin/python3 -c "import deeplabcut; deeplabcut.label_frames('/data/config.yaml')"
+```
 
 On a remote machine with x11 forwarding, with environment:  
 ```bash
