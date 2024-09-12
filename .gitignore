@@ -42,3 +42,4 @@ scripts/wt/slurm_logs/
 d
 *.npy
 *.npz
+*.png
