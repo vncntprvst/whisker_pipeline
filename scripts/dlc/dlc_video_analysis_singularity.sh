@@ -6,7 +6,9 @@
 #SBATCH --job-name=dlc_video_analysis    
 #SBATCH -o ./slurm_logs/dlc_video_analysis_sing-%j.out
 #SBATCH --mail-type=ALL
-#SBATCH --mail-user=$(echo $USER@mit.edu)
+
+# Dynamically set mail-user
+scontrol update job $SLURM_JOB_ID MailUser=$USER@mit.edu
 
 # Use the following command to submit the job:
 # sbatch dlc_video_analysis_singularity.sh [src_video_dir] [config_file] [filter_labels] [plot_trajectories] [create_labeled_video]

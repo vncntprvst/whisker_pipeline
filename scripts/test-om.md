@@ -163,6 +163,29 @@ Memory Utilized: 19.12 GB
 Memory Efficiency: 238.95% of 8.00 GB
 ```
 
+Full session, with 3 videos
+```bash
+-rw-r--r-- 1 prevosto nese_fan_wang_all_lab 3661674770 Jan 19  2023 sc012_0119_001_20230119-190517_HSCam.avi
+-rw-r--r-- 1 prevosto wanglab               3087126218 Jan 19  2023 sc012_0119_002_20230119-192432_HSCam.avi
+-rw-r--r-- 1 prevosto wanglab               1801893306 Jan 19  2023 sc012_0119_003_20230119-193528_HSCam.avi
+```
+```bash
+SOURCE_PATH=/nese/mit/group/fan_wang/all_staff/Vincent/Ephys/whisker_asym/sc012/sc012_0119/
+sbatch dlc_video_analysis_singularity.sh $SOURCE_PATH 
+```
+```bash
+Job ID: 38793546
+Cluster: openmind7
+User/Group: prevosto/wanglab
+State: COMPLETED (exit code 0)
+Nodes: 1
+Cores per node: 4
+CPU Utilized: 00:01:58
+CPU Efficiency: 5.82% of 00:33:48 core-walltime
+Job Wall-clock time: 00:08:27
+Memory Utilized: 4.06 GB
+Memory Efficiency: 33.80% of 12.00 GB
+```
 
 ### Whisker Tracking
 First testing with environment - then with singularity.

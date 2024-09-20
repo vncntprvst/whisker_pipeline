@@ -89,10 +89,6 @@ fi
 # Run the script
 singularity exec -B $script_path:/scripts -B $file_path:/data $image_path python /scripts/whisker_tracking.py /data/$file_name -b $base_name -s -p $proc_num
 
-# singularity exec -B $script_path:/scripts -B $file_path:/data $image_path /bin/bash -c "cd /scripts && python whisker_tracking.py /data/$file_name -b $base_name -s -p $proc_num"
-
-# singularity exec -B $script_path:/scripts -B $file_path:/data $image_path python -c "import os; os.chdir('/scripts'); import whisker_tracking; whisker_tracking.main('/data/$file_name', base_name='$base_name', s=True, p=$proc_num)"
-
 # End of script
 echo -e '\n'
 echo "Job finished at $(date)"
