@@ -3,13 +3,13 @@
 
 TERM=xterm-256color
 
-#  Try to source the server directories
-if [ -f ./secrets/server_dirs.sh ]; then
-    source ./secrets/server_dirs.sh
-elif [ -f ../secrets/server_dirs.sh ]; then
-    source ../secrets/server_dirs.sh
+#  Try to source the server directories with the .env file
+if [ -f ./utils/source_env.sh ]; then
+    source ./utils/source_env.sh
+elif [ -f ../utils/source_env.sh ]; then
+    source ../utils/source_env.sh
 else
-    echo -e "\e[31mError:\e[0m File \e[37;103mserver_dirs.sh\e[0m not found \n" 
+    echo -e "\e[31mError:\e[0m File \e[37;103msource_env.sh\e[0m not found \n" 
 fi
 
 # Enable the module command if not already enabled

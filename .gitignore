@@ -43,3 +43,6 @@ d
 *.npy
 *.npz
 *.png
+
+# Ignore hidden files
+scripts/utils/.env
