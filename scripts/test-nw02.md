@@ -76,3 +76,20 @@ script_path="/home/wanglab/code/behavior_analysis/whisker_tracking/whisker_pipel
 nproc=40
 
 docker run --rm -v $file_path:/data -v $script_path:/scripts wanglabneuro/whisk-ww python /scripts/wt_trace_measure.py /data/$file_name -b $base_name -s -p $nproc
+
+# With whisker_tracking.sh script
+```bash
+file_path="/home/wanglab/data/whisker_asym/sc012/sc012_0119"
+file_name="sc012_0119_002_20230119-192432_HSCam.avi"
+base_name="sc012_0119_002"
+nproc=40
+./whisker_tracking.sh $file_path/$file_name $nproc $base_name
+
+# Example:
+./whisker_tracking.sh /home/wanglab/data/whisker_asym/sc012/sc012_0119/sc012_0119_002_20230119-192432_HSCam.avi 40 sc012_0119_002
+```
+
+TODO:
+- [ ] Add h5py to Dockerfile ? 
+- [ ] Why is whiskerpad_right.jpg not created? 
+- [ ] Make script to call whisker tracking and DLC on the same video file. 

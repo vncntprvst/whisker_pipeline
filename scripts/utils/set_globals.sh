@@ -80,7 +80,7 @@ fi
 if [ -d "${HPCC_IMAGE_REPO}" ]; then
     IMAGE_REPO=$HPCC_IMAGE_REPO
 else
-    IMAGE_REPO=$PWD/../containers/
+    IMAGE_REPO=$PWD/../containers
 fi
 if [ -f ../utils/full_path_substitution.sh ]; then 
     export IMAGE_REPO=$(bash ../utils/full_path_substitution.sh $IMAGE_REPO)

@@ -46,3 +46,6 @@ d
 
 # Ignore hidden files
 scripts/utils/.env
+
+# Ignore container files
+scripts/containers/
