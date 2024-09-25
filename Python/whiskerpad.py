@@ -236,26 +236,69 @@ class WhiskerPad:
             whiskingParams[1].ImageSide = 'right'
 
         return whiskingParams, args.splitUp
+    
+    @staticmethod
+    def distance_to_contour(contour, feature_coord):
+        """
+        Calculate the Euclidean distance between the centroid of a contour and a feature coordinate (e.g. NoseTip)
+        
+        Arguments:
+        contour -- the contour
+        feature_coord -- the feature coordinate
+        
+        Returns:
+        distance -- the Euclidean distance between the centroid of the contour and the feature coordinate       
+        """
+        # Calculate the centroid of the contour
+        M = cv2.moments(contour)
+        if M["m00"] != 0:
+            cx = int(M["m10"] / M["m00"])
+            cy = int(M["m01"] / M["m00"])
+        else:
+            cx, cy = 0, 0
+
+        # Calculate Euclidean distance between centroid and the feature coordinate
+        centroid = np.array([cx, cy])
+        distance = np.linalg.norm(centroid - feature_coord)
+
+        return distance
             
     @staticmethod
     def find_whiskerpad(topviewImage, fp, face_side, image_side, video_dir=None):
+        """
+        Find the whisker pad location in the topview image
         
-        contour=None
-        while contour is None or len(contour) == 0:
-            # Threshold the first frame and apply morphological opening to the binary image
-            gray, opening = WhiskerPad.morph_open(topviewImage)
+        Arguments:
+        topviewImage -- the topview image
+        fp -- face parameters object
+        face_side -- the side of the face (left, right)
+        image_side -- the side of the image (left, right, top, bottom)
+        video_dir -- the directory containing the video file
+        
+        Returns:
+        whiskingParams -- the whisking parameters object
+        """
+                    
+        # Threshold the first frame and apply morphological opening to the binary image
+        _, opening = WhiskerPad.morph_open(topviewImage)
 
-            # Find contours in the opened morphology
-            contours = WhiskerPad.find_contours(opening)
+        # Find contours in the opened morphology
+        contours = WhiskerPad.find_contours(opening)
 
-            # Filter contours based on minimum area threshold
-            minArea = 3000
-            filteredContours = [cnt for cnt in contours if cv2.contourArea(cnt) >= minArea]
+        # Filter contours based on minimum area threshold
+        minArea = 3000
+        filteredContours = [cnt for cnt in contours if cv2.contourArea(cnt) >= minArea]
 
-            # Find the largest contour
-            contour = max(filteredContours, key=cv2.contourArea)
+        # If two or more contours are found, keep the one closest to the NoseTip
+        if len(filteredContours) > 1:
+            contour = min(filteredContours, key=lambda cnt: WhiskerPad.distance_to_contour(cnt, fp.NoseTip))
+        elif filteredContours:
+            contour = filteredContours[0]  # If only one valid contour, just use it
+        else:
+            contour = None
+            return None
 
-        # plot image, and overlay the contour on top
+        # # plot image, and overlay the contour on top
         # fig, ax = plt.subplots()
         # ax.imshow(topviewImage)
         # plt.title('Face contour')
@@ -371,7 +414,7 @@ class WhiskerPad:
         # # Plot image and wpLocation on top
         # fig, ax = plt.subplots()
         # ax.imshow(topviewImage)
-        # plt.title('Face contour')
+        # plt.title(f"Face contour with whisker pad location for face side ({face_side})")
         # ax.plot(face_contour[:, 0], face_contour[:, 1], linewidth=2, color='r')
         # ax.plot(wpLocation[0], wpLocation[1], 'o', color='y')
         # plt.show()
@@ -403,8 +446,12 @@ class WhiskerPad:
                 # Save the image with the contour overlayed and the whisker pad location labelled on it
                 image_with_contour = topviewImage.copy()
                 cv2.drawContours(image_with_contour, [face_contour], -1, (0, 255, 0), 3)
+                # Save image with whisker pad location labelled
+                plot_dir = os.path.join(video_dir, 'plots')
+                if not os.path.exists(plot_dir):
+                    os.makedirs(plot_dir, exist_ok=True)
                 # define file name based on face orientation 
-                output_path = os.path.join(video_dir, 'whiskerpad_' + face_side.lower() + '.jpg')
+                output_path = os.path.join(plot_dir, 'whiskerpad_' + face_side.lower() + '.jpg')
                 cv2.imwrite(output_path, cv2.circle(image_with_contour, tuple(wpLocation), 10, (255, 0, 0), -1))
 
             # Define whisker pad area (wpArea) as the rectangle around the whisker pad location
@@ -655,8 +702,11 @@ class WhiskerPad:
         midline_offset = np.abs(nose_tip[0] - image.shape[1] / 2)
 
         if video_dir is not None:
+            plot_dir = os.path.join(video_dir, 'plots')
+            if not os.path.exists(plot_dir):
+                os.makedirs(plot_dir, exist_ok=True)
             # Save the frame with the nose tip labelled on it
-            cv2.imwrite(os.path.join(video_dir, 'nose_tip.jpg'), cv2.circle(image, tuple(nose_tip), 10, (255, 0, 0), -1))
+            cv2.imwrite(os.path.join(plot_dir, 'nose_tip.jpg'), cv2.circle(image, tuple(nose_tip), 10, (255, 0, 0), -1))
 
         # instanciate whiskparams with nose_tip, face_axis, face_orientation
         face_params = FaceParams(face_axis, face_orientation, None , nose_tip, midline_offset)
