@@ -90,6 +90,8 @@ nproc=40
 ```
 
 TODO:
-- [ ] Add h5py to Dockerfile ? 
-- [ ] Why is whiskerpad_right.jpg not created? 
+- [X] Add h5py to Dockerfile ? 
+      > Added to `whisk-ww-nb_latest` container. See `whisk-dockerfile` repo. 
+- [X] Why is whiskerpad_right.jpg not created? 
+      > The issue was the dark pourtour was larger than the face area. Fixed that in the code.  
 - [ ] Make script to call whisker tracking and DLC on the same video file. 

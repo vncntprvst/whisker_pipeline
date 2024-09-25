@@ -286,7 +286,7 @@ class WhiskerPad:
         contours = WhiskerPad.find_contours(opening)
 
         # Filter contours based on minimum area threshold
-        minArea = 3000
+        minArea = 0.1 * (topviewImage.shape[0] * topviewImage.shape[1])
         filteredContours = [cnt for cnt in contours if cv2.contourArea(cnt) >= minArea]
 
         # If two or more contours are found, keep the one closest to the NoseTip
@@ -361,20 +361,24 @@ class WhiskerPad:
                     # ending point is the point with the highest x value and highest y value
                     ending_point = contour[contour[:, 0, 0].argmax(), 0, :]
 
-        # Find the index of the starting point in the contour
-        starting_point_index = np.where((contour == starting_point).all(axis=2))[0][0]
-        # Find the index of the ending point in the contour
-        ending_point_index = np.where((contour == ending_point).all(axis=2))[0][0]
+        try:
+            # Find the index of the starting point in the contour
+            starting_point_index = np.where((contour == starting_point).all(axis=2))[0][0]
+            # Find the index of the ending point in the contour
+            ending_point_index = np.where((contour == ending_point).all(axis=2))[0][0]
+        except IndexError:
+            raise ValueError("Starting or ending point not found in the contour")
  
+        # Adjust starting point index based on face orientation
         if fp.FaceOrientation == 'up' or (fp.FaceOrientation == 'right' and contour_brightSide['maxSide'] == 'bottom'):
-            # add modulus contour length to starting point index
-            starting_point_index = starting_point_index + contour.shape[0]
+            # Add modulus contour length to starting point index
+            starting_point_index = (starting_point_index + contour.shape[0]) % contour.shape[0]
 
-        # Make sure starting point index is smaller than ending point index
+        # Ensure starting point index is smaller than ending point index
         if starting_point_index > ending_point_index:
             starting_point_index, ending_point_index = ending_point_index, starting_point_index
 
-        # face contour is the part of the contour bounded by those indices
+        # Extract the face contour bounded by the starting and ending points
         face_contour = contour[starting_point_index:ending_point_index+1, 0, :]
 
         # Plot rotated contour face_contour_r
@@ -385,9 +389,13 @@ class WhiskerPad:
         # we rotate the curve to set that line as the x-axis. We then find the highest y value 
         # on the rotated contour, and use that as the index for the whisker pad location.
 
-        # Find the angle of the straight line
-        theta = np.arctan((ending_point[1] - starting_point[1]) / (ending_point[0] - starting_point[0]))
-
+        # Calculate the angle of the straight line
+        if ending_point[0] != starting_point[0]:
+            theta = np.arctan((ending_point[1] - starting_point[1]) / (ending_point[0] - starting_point[0]))
+        else:
+            # Handle division by zero by setting theta to 90 degrees
+            theta = np.pi / 2
+            
         if (fp.FaceOrientation == 'right' and contour_brightSide['maxSide'] == 'top') \
             or (fp.FaceOrientation == 'left' and contour_brightSide['maxSide'] == 'bottom'):
             # Rotate the contour by that angle minus pi, in the counter clockwise direction
