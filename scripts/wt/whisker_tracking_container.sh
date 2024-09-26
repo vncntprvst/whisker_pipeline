@@ -13,7 +13,7 @@
 # 128 Cores: ~46 GB
 # 200 Cores: ~71 GB
 
-# Template usage: sbatch whisk_trace_and_measure.sh [file_path] [base_name]
+# Template usage: sbatch whisk_trace_and_measure.sh [file_path] [proc_num] [base_name]
 
 echo -e '\n'
 echo '##################################'

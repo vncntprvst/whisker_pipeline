@@ -1,5 +1,5 @@
 #!/bin/sh
-#SBATCH -t 04:00:00
+#SBATCH -t 00:30:00
 #SBATCH -n 4    
 #SBATCH --mem=12G
 #SBATCH --gres=gpu:a100:1                       # For any other GPU, ask --gres=gpu:1, and next line SBATCH --constraint=24GB  (or 32GB)
@@ -11,12 +11,20 @@
 scontrol update job $SLURM_JOB_ID MailUser=$USER@mit.edu
 
 # Use the following command to submit the job:
-# sbatch dlc_video_analysis_singularity.sh [src_video_dir] [config_file] [filter_labels] [plot_trajectories] [create_labeled_video]
+# sbatch dlc_video_analysis_singularity.sh [src_video_dir] [flags] [config_file]
+# 
+# Flags: 
+# --filter_labels: Filter labels
+# --plot_trajectories: Plot trajectories
+# --create_labeled_video: Create labeled video
+
+# Example usage:
+# sbatch dlc_video_analysis_singularity.sh /om/user/$USER/data/videos/ --filter_labels --plot_trajectories /om/user/$USER/data/my_project/my-network-2024-02-29/config.yaml
 
 echo -e '\n'
-echo '#########################'
+echo '############################'
 echo '##  DLC analyze video.sh  ##'
-echo '#########################'
+echo '############################'
 echo -e '\n'
 
 # Check resource availability and usage if $SLURM_JOB_ID is not empty (i.e. if we are running on a cluster)
@@ -33,14 +41,56 @@ echo -e '\n'
 # Load global settings
 source ../utils/set_globals.sh $USER
 
+# Assign the source video directory 
 SRC_VIDEO_DIR=$1
-CONFIG_FILE=${2:-"$OM_BASE_DIR/$PROJECT/$DLC_NETWORK/config.yaml"}
 
 # Assign optional flags to an associative array
 declare -A flags
-flags["--filter_labels"]=${3:-"True"}
-flags["--plot_trajectories"]=${4:-"True"}
-flags["--create_labeled_video"]=${5:-"False"}
+# flags["--filter_labels"]=${2:-"True"}
+# flags["--plot_trajectories"]=${3:-"True"}
+# flags["--create_labeled_video"]=${4:-"False"}
+# CONFIG_FILE=${5:-"$OM_BASE_DIR/$PROJECT/$DLC_NETWORK/config.yaml"}
+
+flags["--filter_labels"]="False"
+flags["--plot_trajectories"]="False"
+flags["--create_labeled_video"]="False"
+
+# Initialize CONFIG_FILE with the default value
+CONFIG_FILE="$OM_BASE_DIR/$PROJECT/$DLC_NETWORK/config.yaml"
+
+# Parse the remaining arguments
+POSITIONAL_ARGS=()
+
+shift # Remove the first argument (SRC_VIDEO_DIR) from processing
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --filter_labels)
+            flags["--filter_labels"]="True"
+            shift # Remove flag from processing
+            ;;
+        --plot_trajectories)
+            flags["--plot_trajectories"]="True"
+            shift # Remove flag from processing
+            ;;
+        --create_labeled_video)
+            flags["--create_labeled_video"]="True"
+            shift # Remove flag from processing
+            ;;
+        *)
+            POSITIONAL_ARGS+=("$1") # Save positional arg
+            shift # Remove positional arg from processing
+            ;;
+    esac
+done
+
+# Restore positional parameters
+set -- "${POSITIONAL_ARGS[@]}"
+
+# Handle the optional CONFIG_FILE argument
+if [[ $# -ge 1 ]]; then
+    CONFIG_FILE=${1}
+fi
 
 # If filter_labels is true, handle HDF5_USE_FILE_LOCKING
 if [ "${flags["--filter_labels"]}" = "True" ]; then
