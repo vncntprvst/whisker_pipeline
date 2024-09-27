@@ -3,7 +3,7 @@
 #SBATCH -N 2                    # number of nodes in this job
 #SBATCH -n 200                  # Total number of tasks (cores)
 #SBATCH --ntasks-per-node=100   # Number of tasks (cores) per node
-#SBATCH --mem=90G               # Memory per node
+#SBATCH --mem=124G               # Memory per node
 #SBATCH --job-name=wt_measure   
 #SBATCH -o ./slurm_logs/wt_measure-%j.out
 #SBATCH --mail-type=ALL

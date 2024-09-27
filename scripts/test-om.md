@@ -569,5 +569,68 @@ Job Wall-clock time: 01:00:15
 Memory Utilized: 163.91 GB
 Memory Efficiency: 109.27% of 150.00 GB
 ```
+With these SBATCH DIRECTIVES:
+```bash
+#SBATCH -t 02:00:00             # Total wall time
+#SBATCH -N 2                    # number of nodes in this job
+#SBATCH -n 200                  # Total number of tasks (cores)
+#SBATCH --ntasks-per-node=100   # Number of tasks (cores) per node
+#SBATCH --mem=90G               # Memory per node
+```
+Still getting OOM for those files.
+```bash
+Job ID: 38898346
+Cluster: openmind7
+User/Group: prevosto/wanglab
+State: OUT_OF_MEMORY (exit code 0)
+Nodes: 2
+Cores per node: 100
+CPU Utilized: 3-11:38:35
+CPU Efficiency: 40.35% of 8-15:16:40 core-walltime
+Job Wall-clock time: 01:02:11
+Memory Utilized: 192.77 GB
+Memory Efficiency: 107.09% of 180.00 GB
+``` 
+```bash
+Job ID: 38898347
+Cluster: openmind7
+User/Group: prevosto/wanglab
+State: OUT_OF_MEMORY (exit code 0)
+Nodes: 2
+Cores per node: 100
+CPU Utilized: 3-14:07:01
+CPU Efficiency: 31.00% of 11-13:50:00 core-walltime
+Job Wall-clock time: 01:23:21
+Memory Utilized: 187.64 GB
+Memory Efficiency: 104.24% of 180.00 GB
+```
+DLC worked well with
+```bash
+#SBATCH -t 04:00:00
+#SBATCH -n 4    
+#SBATCH --mem=12G
+#SBATCH --gres=gpu:a100:1
+```
+The time is for both videos in the directory.
+```bash
+Job ID: 38898345
+Cluster: openmind7
+User/Group: prevosto/wanglab
+State: COMPLETED (exit code 0)
+Nodes: 1
+Cores per node: 4
+CPU Utilized: 03:10:41
+CPU Efficiency: 29.69% of 10:42:20 core-walltime
+Job Wall-clock time: 02:40:35
+Memory Utilized: 8.41 GB
+Memory Efficiency: 70.11% of 12.00 GB
+```
 
+Now setting `--mem=124G` in `scripts/wt/whisker_tracking_container.sh`, and 
+`RUN_DEEPLABCUT=False` in `scripts/behavior_analysis_container.sh`.
+```bash
+cd scripts
+SOURCE_PATH=/nese/mit/group/fan_wang/all_staff/Vincent/Ephys/whisker_asym/sc014/sc014_0325
+sbatch --mail-user="$USER@mit.edu" behavior_analysis_container.sh $SOURCE_PATH 
+```
 
