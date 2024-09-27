@@ -16,9 +16,9 @@ Arguments:
 - labeled_video: Create labeled videos after analysis.
 """
 
-
 import glob
 import os
+import shutil
 import sys
 import argparse
 import deeplabcut
@@ -112,6 +112,20 @@ def plot_trajectories(config_file, video_files, **kwargs):
                                  filtered=filtered_labels, 
                                  destfolder=dest_dir,
                                  )
+    
+    # Move the figures to the 'plots' directory
+    source_dir = os.path.join(dest_dir, 'plot-poses')
+    target_dir = os.path.join(dest_dir, 'plots')
+
+    # Ensure the target directory exists
+    os.makedirs(target_dir, exist_ok=True)
+
+    # Move files and subdirectories
+    for item in os.listdir(source_dir):
+        shutil.move(os.path.join(source_dir, item), os.path.join(target_dir, item))
+
+    # Remove the source directory
+    os.rmdir(source_dir)
 
 def create_labeled_video(config_file, video_files, **kwargs):
     """

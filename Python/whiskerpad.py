@@ -184,7 +184,7 @@ class WhiskerPad:
         # initialize values
         wp = [WhiskingParams(None, None, None), WhiskingParams(None, None, None)]
         for image, f_side, im_side, side_id in zip(image_halves, face_side, image_side, range(len(image_halves))):
-            wp[side_id] = WhiskerPad.find_whiskerpad(image, fp, face_side=f_side, image_side=im_side, video_dir=args.video_dir)           
+            wp[side_id] = WhiskerPad.find_whiskerpad(image, fp, face_side=f_side, image_side=im_side, video_dir=args.video_dir, basename=args.basename)    
             wp[side_id].ImageSide = im_side
             # Set image coordinates as a tuple of image coordinates x, y, width, height
             if im_side == 'left' or im_side == 'top':
@@ -264,7 +264,7 @@ class WhiskerPad:
         return distance
             
     @staticmethod
-    def find_whiskerpad(topviewImage, fp, face_side, image_side, video_dir=None):
+    def find_whiskerpad(topviewImage, fp, face_side, image_side, video_dir=None, basename=None):
         """
         Find the whisker pad location in the topview image
         
@@ -274,6 +274,7 @@ class WhiskerPad:
         face_side -- the side of the face (left, right)
         image_side -- the side of the image (left, right, top, bottom)
         video_dir -- the directory containing the video file
+        basename -- the basename of the video file (for saving plots)
         
         Returns:
         whiskingParams -- the whisking parameters object
@@ -459,7 +460,7 @@ class WhiskerPad:
                 if not os.path.exists(plot_dir):
                     os.makedirs(plot_dir, exist_ok=True)
                 # define file name based on face orientation 
-                output_path = os.path.join(plot_dir, 'whiskerpad_' + face_side.lower() + '.jpg')
+                output_path = os.path.join(plot_dir, f'whiskerpad_{basename}_{face_side.lower()}.jpg')
                 cv2.imwrite(output_path, cv2.circle(image_with_contour, tuple(wpLocation), 10, (255, 0, 0), -1))
 
             # Define whisker pad area (wpArea) as the rectangle around the whisker pad location
@@ -714,7 +715,7 @@ class WhiskerPad:
             if not os.path.exists(plot_dir):
                 os.makedirs(plot_dir, exist_ok=True)
             # Save the frame with the nose tip labelled on it
-            cv2.imwrite(os.path.join(plot_dir, 'nose_tip.jpg'), cv2.circle(image, tuple(nose_tip), 10, (255, 0, 0), -1))
+            cv2.imwrite(os.path.join(plot_dir, f'{os.path.splitext(videoFileName)[0]}_nose_tip.jpg'), cv2.circle(image, tuple(nose_tip), 10, (255, 0, 0), -1))
 
         # instanciate whiskparams with nose_tip, face_axis, face_orientation
         face_params = FaceParams(face_axis, face_orientation, None , nose_tip, midline_offset)
@@ -736,7 +737,7 @@ class WhiskerPad:
         filename = whiskerpad['basename']
         #os.path.basename(args.video_file).split('.')[0]
 
-        # Save whiskerpad parameters to json file named whiskerpad_{filename}.json
+        # Save whiskerpad parameters to json file
         with open(os.path.join(trackingDir, 'whiskerpad_' + filename + '.json'), 'w') as file:
             json.dump(whiskerpad, file, indent='\t', cls=WhiskingParamsEncoder)
 

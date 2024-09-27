@@ -4,7 +4,7 @@ import sys
 import json
 import numpy as np
 import time
-
+import gc
 import WhiskiWrap as ww
 from WhiskiWrap import load_whisker_data as lwd
 import whiskerpad as wp
@@ -25,7 +25,8 @@ def trace_measure(input_file, base_name, output_dir, nproc, splitUp, log_file):
     
     if not os.path.exists(whiskerpad_file):
         # If whiskerpad file does not exist, create it
-        log_file.write('Creating whiskerpad parameters file.\n')
+        log_file.write(f"Creating whiskerpad parameters file {whiskerpad_file}\n")
+        log_file.flush()
         whiskerpad = wp.Params(input_file, splitUp, base_name)
         # Get whiskerpad parameters
         whiskerpadParams, splitUp = wp.WhiskerPad.get_whiskerpad_params(whiskerpad)
@@ -65,6 +66,7 @@ def trace_measure(input_file, base_name, output_dir, nproc, splitUp, log_file):
 
     for side in side_types:
         log_file.write(f'Running whisker tracking for {side} face side video\n')
+        log_file.flush()
         start_time_track = time.time()
 
         output_filename = os.path.join(os.path.dirname(input_file), f'{base_name}_{side}.parquet')
@@ -86,6 +88,7 @@ def trace_measure(input_file, base_name, output_dir, nproc, splitUp, log_file):
         log_file.write(f'Chunk size: {chunk_size}\n')
         log_file.write(f'Output filename: {output_filename}\n')
         log_file.write(f'Chunk name pattern: {chunk_name_pattern}\n')
+        log_file.flush()
 
         result_dict = ww.interleaved_split_trace_and_measure(
             ww.FFmpegReader(input_file, crop=side_im_coord),
@@ -104,6 +107,7 @@ def trace_measure(input_file, base_name, output_dir, nproc, splitUp, log_file):
 
         time_track = time.time() - start_time_track
         log_file.write(f'Tracking for {side} took {time_track} seconds.\n')
+        log_file.flush()
 
         output_filenames.append(output_filename)
 
@@ -137,22 +141,39 @@ def main():
         log_file.write(f'Start time: {time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(start_time))}\n')
 
         # Trace and measure whiskers
+        log_file.write("Tracing and measuring whiskers...\n")
+        log_file.flush()
         output_filenames, whiskerpad_file = trace_measure(input_file, base_name, output_dir, nproc, splitUp, log_file)
+        log_file.write(f'Tracing and measuring whiskers took {time.time() - start_time} seconds.\n')
+
+        # Force garbage collection
+        gc.collect()
 
         # Combine left and right whisker data
         log_file.write("Combining whisker tracking files...\n")
+        log_file.flush()
         start_time_combine = time.time()
         cs.combine_to_file(output_filenames, whiskerpad_file)
         log_file.write(f'Combining whiskers took {time.time() - start_time_combine} seconds.\n')
+        log_file.flush()
+        
+        # Force garbage collection
+        gc.collect()
 
         # Plot overlay
         log_file.write("Creating overlay plot...\n")
+        log_file.flush()
         start_time_plot = time.time()
         po.plot_overlay(input_file, base_name)
         log_file.write(f'Plotting overlay took {time.time() - start_time_plot} seconds.\n')
+        log_file.flush()
+        
+        # Force garbage collection
+        gc.collect()
 
         total_time = time.time() - start_time
         log_file.write(f'Total time for the script: {total_time} seconds\n')
+        log_file.flush()
 
         # Close log and restore stdout
         sys.stdout = sys.__stdout__

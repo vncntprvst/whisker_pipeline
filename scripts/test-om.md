@@ -633,4 +633,85 @@ cd scripts
 SOURCE_PATH=/nese/mit/group/fan_wang/all_staff/Vincent/Ephys/whisker_asym/sc014/sc014_0325
 sbatch --mail-user="$USER@mit.edu" behavior_analysis_container.sh $SOURCE_PATH 
 ```
+Running whisker tracking for sc014_0325_001_TopCam0.mp4 with job ID: 38899789
+```bash
+Job ID: 38899789
+Cluster: openmind7
+User/Group: prevosto/wanglab
+State: COMPLETED (exit code 0)
+Nodes: 2
+Cores per node: 100
+CPU Utilized: 00:12:24
+CPU Efficiency: 0.67% of 1-06:40:00 core-walltime
+Job Wall-clock time: 00:09:12
+Memory Utilized: 122.31 GB
+Memory Efficiency: 49.32% of 248.00 GB
+```
 
+!!!! Why?  
+Running whisker tracking for sc014_0325_002_TopCam0.mp4 with job ID: 38899790
+```bash
+Job ID: 38899790
+Cluster: openmind7
+User/Group: prevosto/wanglab
+State: OUT_OF_MEMORY (exit code 0)
+Nodes: 2
+Cores per node: 100
+CPU Utilized: 00:13:46
+CPU Efficiency: 0.70% of 1-08:40:00 core-walltime
+Job Wall-clock time: 00:09:48
+Memory Utilized: 117.42 GB
+Memory Efficiency: 47.35% of 248.00 GB
+```
+Answer: 
+```
+Hi Vincent,
+
+Yes, it looks that the job requested two nodes but ran on only one node. The --mem=124G is per node. So, I suggest running your job on only one node. If you do not use MPI, running a job on two nodes does not help.
+
+Best,
+Shaohao
+```
+So try: 
+```bash
+#SBATCH -t 02:00:00             # Total wall time
+#SBATCH -N 1                    # number of nodes in this job
+#SBATCH -n 200                  # Total number of tasks (cores)
+#SBATCH --mem=150G  
+```
+
+Comparing avi and mp4 files:
+```bash
+video_path="/weka/scratch/tmp/Vincent/sc014/sc014_0325/sc014_0325_001_TopCam0.mp4"
+python -c "from utils.video_utils import get_video_info; get_video_info('$video_path')"
+Video file: /weka/scratch/tmp/Vincent/sc014/sc014_0325/sc014_0325_001_TopCam0.mp4
+Frame dimensions: 720x540
+Number of frames: 783979
+File size: 373769607 bytes
+Weight per frame: 476.7597180536724 bytes
+
+
+video_path="/om/scratch/tmp/Vincent/whisker_asym/sc012/test_full_length/sc012_0119_001_20230119-190517_HSCam.avi"
+python -c "from utils.video_utils import get_video_info; get_video_info('$video_path')"
+Video file: /om/scratch/tmp/Vincent/whisker_asym/sc012/test_full_length/sc012_0119_001_20230119-190517_HSCam.avi
+Frame dimensions: 720x540
+Number of frames: 363508
+File size: 3661674770 bytes
+Weight per frame: 10073.161443489551 bytes
+```
+
+If split in 200 frames chunks, it would be 1.9GB per chunk for the mp4 file, and 2GB per chunk for the avi file. 
+Accordingly, for
+120 Cores: 1.9GB * 120 = 228GB for mp4, 2GB * 120 = 240GB for avi
+128 Cores: 1.9GB * 128 = 243GB for mp4, 2GB * 128 = 256GB for avi
+200 Cores: 1.9GB * 200 = 380GB for mp4, 2GB * 200 = 400GB for avi
+
+Yet, testing showed 
+# sc012/sc012_0119 (.avi)
+# 120 Cores: ~43 GB
+# 128 Cores: ~46 GB
+# 200 Cores: ~71 GB
+
+While for mp4, there was more OOM errors, and the memory usage was higher.
+
+Really not idea why

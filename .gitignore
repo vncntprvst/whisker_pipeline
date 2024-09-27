@@ -51,3 +51,4 @@ scripts/utils/.env
 # Ignore container files
 scripts/containers/
 
+Python/utils/__pycache__/video_utils.cpython-310.pyc
