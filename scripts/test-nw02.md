@@ -94,4 +94,6 @@ TODO:
       > Added to `whisk-ww-nb_latest` container. See `whisk-dockerfile` repo. 
 - [X] Why is whiskerpad_right.jpg not created? 
       > The issue was the dark pourtour was larger than the face area. Fixed that in the code.  
-- [ ] Make script to call whisker tracking and DLC on the same video file. 
+- [X] Make script to call whisker tracking and DLC on the same video file. 
+      > Done. See `scripts/behavior_analysis_container.sh` script. Also renamed DLC and WT scripts to `scripts/dlc/dlc_video_analysis_container.sh` and `scripts/wt/whisker_tracking_container.sh`.
+- []  Append baseneme to ww plots.
