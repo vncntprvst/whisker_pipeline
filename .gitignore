@@ -37,6 +37,7 @@ Python/__pycache__/whiskerpad.cpython-310.pyc
 # Ignore slurm log directories
 scripts/dlc/slurm_logs/
 scripts/wt/slurm_logs/
+scripts/slurm_logs/
 
 # Ignore miscellaneous files/directory
 d
@@ -49,3 +50,4 @@ scripts/utils/.env
 
 # Ignore container files
 scripts/containers/
+
