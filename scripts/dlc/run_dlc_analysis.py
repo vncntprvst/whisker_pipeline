@@ -22,6 +22,7 @@ import os
 import sys
 import argparse
 import deeplabcut
+import time
 
 # TODO: Removed passing kwargs to deeplabcut functions for now, as they are all lumped together in the 'kwargs' dictionary. Would need to check which kwargs are valid for each function and pass them accordingly.
 
@@ -40,6 +41,21 @@ def analyze_videos(config_file, video_files, **kwargs):
     shuffle_num = kwargs.pop('shuffle', 1)
     csv_export = kwargs.pop('save_as_csv', False)
     dest_dir = kwargs.pop('destfolder', None)
+    skipexisting = kwargs.pop('skipexisting', False)
+    
+    if skipexisting:
+        # Check if the analysis has already been performed on the videos        
+        video_files_to_analyze = []
+        for video in video_files:
+            video_name = os.path.splitext(os.path.basename(video))[0]
+            h5_pattern = os.path.join(dest_dir, f"{video_name}DLC_resnet50*.h5")
+            if not glob.glob(h5_pattern):
+                video_files_to_analyze.append(video)
+            else:
+                print(f"Skipping analysis for {video} as matching .h5 files already exist.")
+    else:
+        video_files_to_analyze = video_files
+        
     
     # Run DeepLabCut analysis using the required parameters and passing remaining kwargs
     deeplabcut.analyze_videos(config_file, video_files, 
@@ -120,6 +136,15 @@ def create_labeled_video(config_file, video_files, **kwargs):
                                     filtered=filtered_labels, 
                                     destfolder=dest_dir, 
                                     )
+def get_frame_count(video_path):
+    """
+    Get the total number of frames in a video file.
+    """
+    import cv2
+    cap = cv2.VideoCapture(video_path)
+    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    cap.release()
+    return frame_count
 
 def main(config_file, video_dir, dest_dir=None, video_type='mp4', shuffle_num=1, gpu_id='0', **kwargs):
     """
@@ -161,8 +186,36 @@ def main(config_file, video_dir, dest_dir=None, video_type='mp4', shuffle_num=1,
     
     # Analyze the videos and pass additional kwargs
     print(f"Analyzing videos in {video_dir} and saving output to {dest_dir}...")
-    analyze_videos(config_file, video_files, videotype=video_type, shuffle=shuffle_num, destfolder=dest_dir)
     
+    # Start the timer
+    start_time = time.time()
+
+    analyze_videos(config_file, 
+                   video_files, 
+                   videotype=video_type, 
+                   shuffle=shuffle_num, 
+                   destfolder=dest_dir, 
+                   skipexisting=True)
+    
+    # End the timer
+    end_time = time.time()
+
+    # Calculate the elapsed time
+    elapsed_time = end_time - start_time
+    
+    print(f"Total time spent on analyzing videos: {elapsed_time:.2f} seconds")
+
+    # Calculate the total number of frames in all videos
+    total_frames = sum(get_frame_count(video) for video in video_files)
+
+    # Calculate the ratio of time spent to number of frames
+    if total_frames > 0:
+        time_per_frame = elapsed_time / total_frames
+        print(f"Total number of frames: {total_frames}")
+        print(f"Time spent per frame: {time_per_frame:.6f} seconds/frame")
+    else:
+        print("No frames found in the provided videos.")
+        
     # If the 'filter' flag is set, filter the labels
     if kwargs.get('filter', False):
         print("Filtering labels...")

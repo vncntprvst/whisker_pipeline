@@ -1,13 +1,14 @@
 #!/bin/bash                      
-#SBATCH -t 00:30:00             # Total wall time
+#SBATCH -t 02:00:00             # Total wall time
 #SBATCH -N 2                    # number of nodes in this job
 #SBATCH -n 200                  # Total number of tasks (cores)
 #SBATCH --ntasks-per-node=100   # Number of tasks (cores) per node
-#SBATCH --mem=75G               # Memory per node
+#SBATCH --mem=90G               # Memory per node
 #SBATCH --job-name=wt_measure   
 #SBATCH -o ./slurm_logs/wt_measure-%j.out
 #SBATCH --mail-type=ALL
-#SBATCH --mail-user=$(echo $USER@mit.edu)
+
+scontrol update job $SLURM_JOB_ID MailUser=$USER@mit.edu
 
 # 120 Cores: ~43 GB
 # 128 Cores: ~46 GB
@@ -38,7 +39,6 @@ file_name=$(basename "$1")  # get video file name from path
 file_path=$(dirname "$1")  # get video file path
 proc_num=${2:-"120"}  # number of processes to use; default is 100
 base_name=${3:-"${file_name%.*}"}  # used to save chunks, e.g., sc010_0207_3200; if not provided, use the file name without extension
-
 # used to save chunks, e.g., sc010_0207_3200; if not provided, use the file name
 
 echo "File path: $file_path"
@@ -86,8 +86,11 @@ else
     fi
 fi
 
+# Set the working directory for whisker tracking processing 
+output_dir="/data/WT_${base_name}"
+
 # Run the script
-singularity exec -B $script_path:/scripts -B $file_path:/data $image_path python /scripts/whisker_tracking.py /data/$file_name -b $base_name -s -p $proc_num
+singularity exec -B $script_path:/scripts -B $file_path:/data $image_path python /scripts/whisker_tracking.py /data/$file_name -b $base_name -s -p $proc_num -o $output_dir
 
 # End of script
 echo -e '\n'

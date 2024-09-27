@@ -1,5 +1,5 @@
 #!/bin/sh
-#SBATCH -t 00:30:00
+#SBATCH -t 04:00:00
 #SBATCH -n 4    
 #SBATCH --mem=12G
 #SBATCH --gres=gpu:a100:1                       # For any other GPU, ask --gres=gpu:1, and next line SBATCH --constraint=24GB  (or 32GB)

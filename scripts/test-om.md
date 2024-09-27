@@ -510,3 +510,64 @@ Memory Utilized: 150.14 GB
 Memory Efficiency: 156.40% of 96.00 GB
 
 ok - just increase the memory a bit more, to 75GB per node.
+
+### Combined scripts for Whisker Tracking and DLC
+See `scripts/behavior_analysis_container.sh`. 
+
+```bash
+cd scripts
+SOURCE_PATH=/nese/mit/group/fan_wang/all_staff/Vincent/Ephys/whisker_asym/sc014/sc014_0325
+sbatch --mail-user="$USER@mit.edu" behavior_analysis_container.sh $SOURCE_PATH 
+```
+DLC works
+WT: Lots of these errors: 
+  ```bash
+  Error in read whisker segments (whiskbin1 format):
+    Out of memory
+  ```
+Probably because using the same `WT` folder with the same base name for all videos.
+It is not a problem with the available memory.
+```bash
+Job ID: 38897919
+Cluster: openmind7
+User/Group: prevosto/wanglab
+State: CANCELLED (exit code 0)
+Nodes: 2
+Cores per node: 100
+CPU Utilized: 00:00:00
+CPU Efficiency: 0.00% of 1-20:33:20 core-walltime
+Job Wall-clock time: 00:13:22
+Memory Utilized: 82.77 GB
+Memory Efficiency: 55.18% of 150.00 GB
+```
+
+After fixing output paths, we do get a true OOM error:
+```bash
+Job ID: 38897983
+Cluster: openmind7
+User/Group: prevosto/wanglab
+State: OUT_OF_MEMORY (exit code 0)
+Nodes: 2
+Cores per node: 100
+CPU Utilized: 3-01:31:08
+CPU Efficiency: 40.02% of 7-15:43:20 core-walltime
+Job Wall-clock time: 00:55:07
+Memory Utilized: 145.25 GB
+Memory Efficiency: 96.83% of 150.00 GB
+```
+And this one cancelled due to time limits, but memory was not fine:
+```bash
+Job ID: 38897984
+Cluster: openmind7
+User/Group: prevosto/wanglab
+State: TIMEOUT (exit code 0)
+Nodes: 2
+Cores per node: 100
+CPU Utilized: 00:00:00
+CPU Efficiency: 0.00% of 8-08:50:00 core-walltime
+Job Wall-clock time: 01:00:15
+Memory Utilized: 163.91 GB
+Memory Efficiency: 109.27% of 150.00 GB
+```
+
+
