@@ -753,3 +753,96 @@ File size: 373769607 bytes
 Weight per frame: 476.7597180536724 bytes
 ```
 
+```bash
+Job ID: 38903249
+Cluster: openmind7
+User/Group: prevosto/wanglab
+State: COMPLETED (exit code 0)
+Nodes: 1
+Cores per node: 120
+CPU Utilized: 2-22:06:19
+CPU Efficiency: 65.21% of 4-11:30:00 core-walltime
+Job Wall-clock time: 00:53:45
+Memory Utilized: 124.60 GB
+Memory Efficiency: 62.30% of 200.00 GB
+
+Job ID: 38903250
+Cluster: openmind7
+User/Group: prevosto/wanglab
+State: COMPLETED (exit code 0)
+Nodes: 1
+Cores per node: 120
+CPU Utilized: 3-19:33:43
+CPU Efficiency: 67.94% of 5-14:46:00 core-walltime
+Job Wall-clock time: 01:07:23
+Memory Utilized: 171.64 GB
+Memory Efficiency: 85.82% of 200.00 GB
+```
+
+ok, next, let's try these avi videos:
+```bash
+cd scripts
+SOURCE_PATH=/nese/mit/group/fan_wang/all_staff/Vincent/Ephys/whisker_asym/sc012/sc012_0119
+sbatch --mail-user="$USER@mit.edu" behavior_analysis_container.sh $SOURCE_PATH 
+```
+```bash
+Job ID: 38903702
+Cluster: openmind7
+User/Group: prevosto/wanglab
+State: COMPLETED (exit code 0)
+Nodes: 1
+Cores per node: 120
+CPU Utilized: 1-05:34:12
+CPU Efficiency: 60.22% of 2-01:06:00 core-walltime
+Job Wall-clock time: 00:24:33
+Memory Utilized: 107.58 GB
+Memory Efficiency: 53.79% of 200.00 GB
+
+Job ID: 38903703
+Cluster: openmind7
+User/Group: prevosto/wanglab
+State: COMPLETED (exit code 0)
+Nodes: 1
+Cores per node: 120
+CPU Utilized: 1-01:54:31
+CPU Efficiency: 63.92% of 1-16:32:00 core-walltime
+Job Wall-clock time: 00:20:16
+Memory Utilized: 207.28 GB
+Memory Efficiency: 103.64% of 200.00 GB
+
+Job ID: 38903704
+Cluster: openmind7
+User/Group: prevosto/wanglab
+State: COMPLETED (exit code 0)
+Nodes: 1
+Cores per node: 120
+CPU Utilized: 14:17:41
+CPU Efficiency: 55.12% of 1-01:56:00 core-walltime
+Job Wall-clock time: 00:12:58
+Memory Utilized: 115.97 GB
+Memory Efficiency: 57.99% of 200.00 GB
+```
+```bash
+conda activate DEEPLABCUT
+video_path="/weka/scratch/tmp/Vincent/sc012/sc012_0119/sc012_0119_003_20230119-193528_HSCam.avi"
+python -c "from Python.utils.video_utils import get_video_info; get_video_info('$video_path')"
+
+Video file: /weka/scratch/tmp/Vincent/sc012/sc012_0119/sc012_0119_001_20230119-190517_HSCam.avi
+Frame dimensions: 720x540
+Number of frames: 363508
+File size: 3661674770 bytes
+Weight per frame: 10073.161443489551 bytes
+
+Video file: /weka/scratch/tmp/Vincent/sc012/sc012_0119/sc012_0119_002_20230119-192432_HSCam.avi
+Frame dimensions: 720x540
+Number of frames: 306586
+File size: 3087126218 bytes
+Weight per frame: 10069.364608951486 bytes
+
+Video file: /weka/scratch/tmp/Vincent/sc012/sc012_0119/sc012_0119_003_20230119-193528_HSCam.avi
+Frame dimensions: 720x540
+Number of frames: 178885
+File size: 1801893306 bytes
+Weight per frame: 10072.91447578053 bytes
+```
+

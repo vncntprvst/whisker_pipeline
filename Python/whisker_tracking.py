@@ -141,7 +141,7 @@ def main():
         log_file.write(f'Start time: {time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(start_time))}\n')
 
         # Trace and measure whiskers
-        log_file.write("Tracing and measuring whiskers...\n")
+        log_file.write(f"Tracing and measuring whiskers for {input_file}...\n")
         log_file.flush()
         output_filenames, whiskerpad_file = trace_measure(input_file, base_name, output_dir, nproc, splitUp, log_file)
         log_file.write(f'Tracing and measuring whiskers took {time.time() - start_time} seconds.\n')

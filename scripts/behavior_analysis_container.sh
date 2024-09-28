@@ -34,6 +34,8 @@ echo -e '\n'
 
 # Load global settings
 source ./utils/set_globals.sh $USER
+CURRENT_DIR=$(pwd)
+REPO_DIR=$(dirname $CURRENT_DIR)
 
 SRC_VIDEO_DIR=$1
 echo "Source video directory: $SRC_VIDEO_DIR"
@@ -107,15 +109,74 @@ if [ "$RUN_WHISKER_TRACKING" = True ]; then
     pushd ./wt > /dev/null
 
     # Iterate through each video in the directory
+
+    # for video_file in $(ls "$TRUE_DEST_VIDEO_DIR" | grep -P "\.($ACCEPTED_FORMATS)$"); do
+    #     FULL_VIDEO_PATH="$TRUE_DEST_VIDEO_DIR/$video_file"
+    #     # echo "Submitting whisker tracking for video: $FULL_VIDEO_PATH"
+        
+    #     BASE_NAME=$(basename "$FULL_VIDEO_PATH" | sed 's/\.[^.]*$//')
+
+    #     # Submit a separate batch job for each video file
+    #     WT_JOB_ID=$(sbatch --mail-user="$EMAIL" ./whisker_tracking_container.sh "$FULL_VIDEO_PATH" "200" "$BASE_NAME" | awk '{print $NF}')
+    #     echo "Running whisker tracking for $video_file with job ID: $WT_JOB_ID"
+    # done
+
     for video_file in $(ls "$TRUE_DEST_VIDEO_DIR" | grep -P "\.($ACCEPTED_FORMATS)$"); do
         FULL_VIDEO_PATH="$TRUE_DEST_VIDEO_DIR/$video_file"
-        # echo "Submitting whisker tracking for video: $FULL_VIDEO_PATH"
+        echo "Submitting whisker tracking for video: $FULL_VIDEO_PATH"
         
         BASE_NAME=$(basename "$FULL_VIDEO_PATH" | sed 's/\.[^.]*$//')
 
-        # Submit a separate batch job for each video file
-        WT_JOB_ID=$(sbatch --mail-user="$EMAIL" ./whisker_tracking_container.sh "$FULL_VIDEO_PATH" "200" "$BASE_NAME" | awk '{print $NF}')
+        # Get estimated wall time and memory
+        module load openmind/anaconda/3-2022.05
+
+        ESTIMATES=$(python - <<EOF
+import sys
+sys.path.append('$REPO_DIR/Python')
+from utils.video_utils import get_video_info
+
+estimated_wall_time_minutes, estimated_memory_gb = get_video_info('$FULL_VIDEO_PATH')
+print(f"{int(estimated_wall_time_minutes)} {int(estimated_memory_gb)}")
+EOF
+        )
+        
+        # Parse the estimates
+        ESTIMATED_WALL_TIME_MINUTES=$(echo $ESTIMATES | awk '{print $(NF-1)}')
+        ESTIMATED_MEMORY_GB=$(echo $ESTIMATES | awk '{print $NF}')
+
+        # Convert estimated wall time to HH:MM:SS format
+        HOURS=$((ESTIMATED_WALL_TIME_MINUTES / 60))
+        MINUTES=$((ESTIMATED_WALL_TIME_MINUTES % 60))
+        WALL_TIME=$(printf "%02d:%02d:00" $HOURS $MINUTES)
+
+        # Print the parsed values for verification
+        echo "Estimated Wall Time Needed (minutes): $ESTIMATED_WALL_TIME_MINUTES"
+        echo "Wall Time: $WALL_TIME"
+        echo "Estimated Memory Needed (GB): $ESTIMATED_MEMORY_GB"
+
+        # Ensure memory does not exceed maximum allowed (e.g., 200G)
+        MAX_MEMORY_GB=200
+        if [ $ESTIMATED_MEMORY_GB -gt $MAX_MEMORY_GB ]; then
+            ESTIMATED_MEMORY_GB=$MAX_MEMORY_GB
+        fi
+        echo "Adjusted Memory (GB): $ESTIMATED_MEMORY_GB"
+
+        # Submit a separate batch job for each video file with adjusted SBATCH directives
+        WT_JOB_ID=$(sbatch \
+            --mail-user="$EMAIL" \
+            --time="$WALL_TIME" \
+            --mem="${ESTIMATED_MEMORY_GB}G" \
+            ./whisker_tracking_container_dynamic_directives.sh \
+            "$FULL_VIDEO_PATH" \
+            "$ESTIMATED_MEMORY_GB" \
+            "$BASE_NAME" \
+            | awk '{print $NF}')
+
+            # --job-name="wt_$BASE_NAME" \
+            # --output="./slurm_logs/wt_measure-%j.out" \
+
         echo "Running whisker tracking for $video_file with job ID: $WT_JOB_ID"
+        echo "Estimated wall time: $WALL_TIME, Estimated memory: ${ESTIMATED_MEMORY_GB}G"
     done
 
     # Return to the original directory
