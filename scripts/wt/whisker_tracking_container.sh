@@ -2,7 +2,7 @@
 #SBATCH -t 03:00:00             # Total wall time
 #SBATCH -N 1                    # number of nodes in this job
 #SBATCH -n 120                  # Total number of tasks (cores)
-#SBATCH --mem=90G               # Memory per node
+#SBATCH --mem=200G              # Memory per node
 #SBATCH --job-name=wt_measure   
 #SBATCH -o ./slurm_logs/wt_measure-%j.out
 #SBATCH --mail-type=ALL
@@ -15,7 +15,7 @@ scontrol update job $SLURM_JOB_ID MailUser=$USER@mit.edu
 # 200 Cores: ~71 GB
 
 # sc014/sc014_0325
-# 120 Cores: ~124 GB ?? failed on N 2 
+# 120 Cores: 180 GB ??
 
 # Template usage: sbatch whisk_trace_and_measure.sh [file_path] [proc_num] [base_name]
 

@@ -712,10 +712,12 @@ class WhiskerPad:
 
         if video_dir is not None:
             plot_dir = os.path.join(video_dir, 'plots')
+            image_path = os.path.join(plot_dir, f'{os.path.splitext(videoFileName)[0]}_nose_tip.jpg')
+            print(f"Saving image with nose tip labelled at {image_path}")
             if not os.path.exists(plot_dir):
                 os.makedirs(plot_dir, exist_ok=True)
             # Save the frame with the nose tip labelled on it
-            cv2.imwrite(os.path.join(plot_dir, f'{os.path.splitext(videoFileName)[0]}_nose_tip.jpg'), cv2.circle(image, tuple(nose_tip), 10, (255, 0, 0), -1))
+            cv2.imwrite(image_path, cv2.circle(image, tuple(nose_tip), 10, (255, 0, 0), -1))
 
         # instanciate whiskparams with nose_tip, face_axis, face_orientation
         face_params = FaceParams(face_axis, face_orientation, None , nose_tip, midline_offset)

@@ -691,7 +691,7 @@ File size: 373769607 bytes
 Weight per frame: 476.7597180536724 bytes
 
 
-video_path="/om/scratch/tmp/Vincent/whisker_asym/sc012/test_full_length/sc012_0119_001_20230119-190517_HSCam.avi"
+video_path="/om/scratch/tmp/Vincent/sc012/sc012_0119/sc012_0119_001_20230119-190517_HSCam.avi"
 python -c "from utils.video_utils import get_video_info; get_video_info('$video_path')"
 Video file: /om/scratch/tmp/Vincent/whisker_asym/sc012/test_full_length/sc012_0119_001_20230119-190517_HSCam.avi
 Frame dimensions: 720x540
@@ -712,6 +712,44 @@ Yet, testing showed
 # 128 Cores: ~46 GB
 # 200 Cores: ~71 GB
 
-While for mp4, there was more OOM errors, and the memory usage was higher.
+While for mp4, there was more OOM errors, and the memory usage was higher (but maybe code has changed since then).
 
-Really not idea why
+What seems to fail, in fact, is the step for combining the two parquet files. 
+Not sure how to predict the memory usage for this step. 
+
+```bash
+#!/bin/bash                      
+#SBATCH -t 03:00:00             # Total wall time
+#SBATCH -N 1                    # number of nodes in this job
+#SBATCH -n 120                  # Total number of tasks (cores)
+#SBATCH --mem=90G
+
+Tracing and measuring whiskers...
+Creating whiskerpad parameters file /data/whiskerpad_sc014_0325_001_TopCam0.json
+...
+Tracing and measuring whiskers took 2875.463263988495 seconds.
+Combining whisker tracking files...
+> fails 
+
+Job ID: 38902990
+Cluster: openmind7
+User/Group: prevosto/wanglab
+State: OUT_OF_MEMORY (exit code 0)
+Nodes: 1
+Cores per node: 120
+CPU Utilized: 3-09:46:06
+CPU Efficiency: 68.06% of 5-00:08:00 core-walltime
+Job Wall-clock time: 01:00:04
+Memory Utilized: 178.87 GB
+Memory Efficiency: 198.75% of 90.00 GB
+```
+Let's go for 200GB of memory.
+Again, we're getting these OOM errors for this file (and 002):
+```bash
+Video file: /weka/scratch/tmp/Vincent/sc014/sc014_0325/sc014_0325_001_TopCam0.mp4
+Frame dimensions: 720x540
+Number of frames: 783979
+File size: 373769607 bytes
+Weight per frame: 476.7597180536724 bytes
+```
+
