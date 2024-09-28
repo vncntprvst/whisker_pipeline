@@ -37,12 +37,12 @@ def get_video_info(video_path):
     file_extension = file_extension.lower()
     
     # Estimate processing rate (frames per minute)
-    processing_rate = 14000  # frames per minute
+    processing_rate = 12000  # frames per minute ~=14000 for AMD EPYC 7643 Processor @2.3 GHz. Adjusted for safety.
     
     # Estimate wall time (in minutes)
     estimated_wall_time_minutes = frame_count / processing_rate
-    # Round up and add 25% safety margin
-    estimated_wall_time_minutes = int(math.ceil(estimated_wall_time_minutes * 1.25))
+    # Add 25% safety margin and round up to the nearest 30 minutes
+    estimated_wall_time_minutes = int(math.ceil(estimated_wall_time_minutes * 1.25 / 30.0) * 30)
     estimated_wall_time_minutes = max(estimated_wall_time_minutes, 30)  # Minimum 30 minutes
     
     # Estimate memory per frame (bytes)

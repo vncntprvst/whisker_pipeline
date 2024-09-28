@@ -45,7 +45,7 @@ source ../utils/set_globals.sh $USER
 # Assign input arguments to variables
 file_name=$(basename "$1")  # get video file name from path
 file_path=$(dirname "$1")  # get video file path
-proc_num=${2:-"120"}  # number of processes to use; default is 100
+proc_num=${2:-${SLURM_CPUS_ON_NODE:-120}}  # number of processes to use; default is 120
 base_name=${3:-"${file_name%.*}"}  # used to save chunks, e.g., sc010_0207_3200; if not provided, use the file name without extension
 # used to save chunks, e.g., sc010_0207_3200; if not provided, use the file name
 

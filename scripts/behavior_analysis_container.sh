@@ -1,5 +1,5 @@
 #!/bin/sh
-#SBATCH -t 00:30:00
+#SBATCH -t 02:00:00
 #SBATCH -n 1    
 #SBATCH --job-name=behavior_video_analysis    
 #SBATCH -o ./slurm_logs/behavior_video_analysis_sing-%j.out
