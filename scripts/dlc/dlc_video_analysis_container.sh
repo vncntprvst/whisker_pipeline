@@ -1,7 +1,7 @@
 #!/bin/sh
 #SBATCH -t 04:00:00
 #SBATCH -n 4    
-#SBATCH --mem=12G
+#SBATCH --mem=16G
 #SBATCH --gres=gpu:a100:1                       # For any other GPU, ask --gres=gpu:1, and next line SBATCH --constraint=24GB  (or 32GB)
 #SBATCH --job-name=dlc_video_analysis    
 #SBATCH -o ./slurm_logs/dlc_video_analysis_sing-%j.out

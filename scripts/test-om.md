@@ -846,3 +846,68 @@ File size: 1801893306 bytes
 Weight per frame: 10072.91447578053 bytes
 ```
 
+Now with dynamic time / memory allocation:
+```bash
+cd scripts
+SOURCE_PATH=/om/user/prevosto/data/whisker_asym/sc014/sc014_0324
+sbatch --mail-user="$USER@mit.edu" behavior_analysis_container.sh $SOURCE_PATH 
+```
+```bash
+Running DLC analysis with job ID: 38903846
+Running whisker tracking for sc014_0324_001_TopCam0.mp4 with job ID: 38903847
+```
+```bash
+Job ID: 38903847
+Cluster: openmind7
+User/Group: prevosto/wanglab
+State: TIMEOUT (exit code 0)
+Nodes: 1
+Cores per node: 120
+CPU Utilized: 00:00:00
+CPU Efficiency: 0.00% of 5-16:54:00 core-walltime
+Job Wall-clock time: 01:08:27
+Memory Utilized: 120.87 GB
+Memory Efficiency: 70.69% of 171.00 GB
+
+Starting job 38903847 on node100 at Sat Sep 28 16:21:26 EDT 2024
+Requested CPUs: 120 (Available CPUs: 256)
+Requested memory: 175104 (Available memory: 2.0Ti)
+Requested walltime: 1:08:00   
+```
+Was not quite done 
+`Tracking for left took 1731.9378225803375 seconds.`
+= 28 minutes for one side of the video.
+But was maybe ~80% done for right side, and that's before merging the two sides. This may depend on compute node's CPU generation. 
+Here, node100. 
+> 128 physical cores (256 hyperthreads): 2x AMD EPYC 7713 Processor @2.0 GHz (64 cores each)
+Prevous mp4 videos were on node108.
+> 96 physical cores (192 hyperthreads): 2x AMD EPYC 7643 Processor @2.3 GHz (48 cores each)
+Also, `Number of trace processes: 171`. Why? 
+Memory usage was ok, though. But again that's before merging the two sides. 
+
+Added more safety for walltime estimation.
+```bash
+Submitting whisker tracking for video: /weka/scratch/tmp/Vincent/sc014/sc014_0324/sc014_0324_001_TopCam0.mp4
+Estimated Wall Time Needed (minutes): 90
+Wall Time: 01:30:00
+Estimated Memory Needed (GB): 171
+Adjusted Memory (GB): 171
+Running whisker tracking for sc014_0324_001_TopCam0.mp4 with job ID: 38904789
+Estimated wall time: 01:30:00, Estimated memory: 171G
+...
+Starting job 38904789 on node114 at Sat Sep 28 18:19:51 EDT 2024
+Requested CPUs: 120 (Available CPUs: 192)
+Requested memory: 175104 (Available memory: 1.0Ti)
+Requested walltime: 1:30:00     
+...
+Tracing and measuring whiskers for /data/sc014_0324_001_TopCam0.mp4...
+Running whisker tracking for left face side video
+Number of trace processes: 171
+Output directory: /data/WT_sc014_0324_001_TopCam0
+```
+
+rsync command to copy the results to the local machine:
+```bash
+# rsync -Pavu om-dtn-vincent:/weka/scratch/tmp/Vincent/sc* /mnt/md0/data/Vincent/whisker_asym/
+rsync -Pavu --exclude 'WT*/' om-dtn-vincent:/weka/scratch/tmp/Vincent/sc* /mnt/md0/data/Vincent/whisker_asym/
+```

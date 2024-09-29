@@ -1,6 +1,7 @@
 #!/bin/sh
-#SBATCH -t 02:00:00
-#SBATCH -n 1    
+#SBATCH -t 10:00:00
+#SBATCH -n 5    
+#SBATCH --mem=1G
 #SBATCH --job-name=behavior_video_analysis    
 #SBATCH -o ./slurm_logs/behavior_video_analysis_sing-%j.out
 #SBATCH --mail-type=ALL
